@@ -1,0 +1,410 @@
+<?xml version="1.0" ?>
+<robot name="modele_final">
+
+	<material name="base_color">
+		<color rgba="1 0.705 0.635 1.0"/>
+	</material>
+
+	<material name="scap_color">
+		<color rgba="0.898 0.596 0.607 1.0"/>
+	</material>
+
+	<material name="top_color">
+		<color rgba="0.709 0.513 0.552 1.0"/>
+	</material>
+
+	<material name="bot_color">
+		<color rgba="0.427 0.407 0.458 1.0"/>
+	</material>
+
+
+	<!--    BASE LINK    --->
+
+	<link name="base_link">
+		<inertial>
+			<mass value="10"/>
+			<inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0.0" izz="1"/>
+			<origin xyz="-0.25 0 0.025"/>
+		</inertial> 
+		<visual>
+			<geometry>
+				<mesh filename="meshes/base_link.stl" scale="0.001 0.001 0.001"/>
+			</geometry>
+			<material name="base_color"/>
+		</visual>
+		<collision>
+			 <geometry>
+				<mesh filename="meshes/base_link.stl" scale="0.001 0.001 0.001"/>
+			</geometry>
+		</collision> 
+	</link> 
+
+	<!--    SCAP PARTS    --->
+	
+	<link name="scap_fl">
+		<inertial>
+			<mass value="0.3"/>
+			<inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0.0" izz="0"/>
+			<origin rpy="0 0 0" xyz="0.09058163234624253 -0.024811912421610502 0"/>
+		</inertial> 
+		<visual>
+			<origin rpy="0 0 0" xyz="0.195 -0.13 -0.025"/>
+			<geometry>
+				<mesh filename="meshes/scap_fl.stl" scale="0.001 0.001 0.001"/>
+			</geometry>
+			<material name="scap_color"/>
+		</visual>
+		<collision>
+			<origin rpy="0 0 0" xyz="0.195 -0.13 -0.025"/>
+			<geometry>
+				<mesh filename="meshes/scap_fl.stl" scale="0.001 0.001 0.001"/>
+			</geometry>
+		</collision> 
+	</link>
+	
+	<link name="scap_fr">
+		<inertial>
+			<mass value="0.3"/>
+			<inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0.0" izz="0"/>
+			<origin rpy="0 0 0" xyz="0.09058163234624253 0.024811912421610502 0"/>
+		</inertial> 
+		<visual>
+			<origin rpy="0 0 0" xyz="0.195 0.13 -0.025"/>
+			<geometry>
+				<mesh filename="meshes/scap_fr.stl" scale="0.001 0.001 0.001"/>
+			</geometry>
+			<material name="scap_color"/>
+		</visual>
+		<collision>
+			<origin rpy="0 0 0" xyz="0.195 0.13 -0.025"/>
+			<geometry>
+				<mesh filename="meshes/scap_fr.stl" scale="0.001 0.001 0.001"/>
+			</geometry>
+		</collision> 
+	</link>
+	
+	<link name="scap_bl">
+		<inertial>
+			<mass value="0.3"/>
+			<inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0.0" izz="0"/>
+			<origin rpy="0 0 0" xyz="-0.09058163234624256 -0.024811912421610502 0"/>
+		</inertial> 
+		<visual>
+			<origin rpy="0 0 0" xyz="0.305 -0.13 -0.025"/>
+			<geometry>
+				<mesh filename="meshes/scap_bl.stl" scale="0.001 0.001 0.001"/>
+			</geometry>
+			<material name="scap_color"/>
+		</visual>
+		<collision>
+			<origin rpy="0 0 0" xyz="0.305 -0.13 -0.025"/>
+			<geometry>
+				<mesh filename="meshes/scap_bl.stl" scale="0.001 0.001 0.001"/>
+			</geometry>
+		</collision> 
+	</link>
+	
+	<link name="scap_br">
+		<inertial>
+			<mass value="0.3"/>
+			<inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0.0" izz="0"/>
+			<origin rpy="0 0 0" xyz="-0.09058163234624256 0.024811912421610502 0"/>
+		</inertial> 
+		<visual>
+			<origin rpy="0 0 0" xyz="0.305 0.13 -0.025"/>
+			<geometry>
+				<mesh filename="meshes/scap_br.stl" scale="0.001 0.001 0.001"/>
+			</geometry>
+			<material name="scap_color"/>
+		</visual>
+		<collision>
+			<origin rpy="0 0 0" xyz="0.305 0.13 -0.025"/>
+			<geometry>
+				<mesh filename="meshes/scap_br.stl" scale="0.001 0.001 0.001"/>
+			</geometry>
+		</collision> 
+	</link> 
+
+	<!--    TOP PARTS    --->
+	
+	<link name="top_fl">
+		<inertial> 
+			<origin rpy="0 0 0" xyz="-7.674416657721395e-15 0.038268316234943076 -0.026584385007801057"/>
+			<mass value="0.3"/>
+			<inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0.0" izz="1"/>
+		</inertial>
+		<visual> 
+			<origin rpy="0 0 0" xyz="0.105 -0.114 -0.025"/>
+			<geometry> 
+				<mesh filename="meshes/top_fl.stl" scale="0.001 0.001 0.001"/>
+			</geometry>
+			<material name="top_color"/>
+		</visual>
+		<collision> 
+			<origin rpy="0 0 0" xyz="0.105 -0.114 -0.025"/>
+			<geometry> 
+				<mesh filename="meshes/top_fl.stl" scale="0.001 0.001 0.001"/>
+			</geometry>
+		</collision> 
+	</link>
+	
+	<link name="top_fr">
+		<inertial> 
+			<origin rpy="0 0 0" xyz="-7.743805596760467e-15 -0.002268316234943085 -0.026584385007800936"/>
+			<mass value="0.3"/>
+			<inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0.0" izz="1"/>
+		</inertial>
+		<visual> 
+			<origin rpy="0 0 0" xyz="0.105 0.15 -0.025"/>
+			<geometry> 
+				<mesh filename="meshes/top_fr.stl" scale="0.001 0.001 0.001"/>
+			</geometry>
+			<material name="top_color"/>
+		</visual>
+		<collision> 
+			<origin rpy="0 0 0" xyz="0.105 0.15 -0.025"/>
+			<geometry> 
+				<mesh filename="meshes/top_fr.stl" scale="0.001 0.001 0.001"/>
+			</geometry>
+		</collision> 
+	</link>
+	
+	<link name="top_bl">
+		<inertial> 
+			<origin rpy="0 0 0" xyz="-7.605027718682322e-15 0.042268316234943135 -0.026584385007801005"/>
+			<mass value="0.3"/>
+			<inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0.0" izz="1"/>
+		</inertial>
+		<visual> 
+			<origin rpy="0 0 0" xyz="0.395 -0.11 -0.025"/>
+			<geometry> 
+				<mesh filename="meshes/top_bl.stl" scale="0.001 0.001 0.001"/>
+			</geometry>
+			<material name="top_color"/>
+		</visual>
+		<collision> 
+			<origin rpy="0 0 0" xyz="0.395 -0.11 -0.025"/>
+			<geometry> 
+				<mesh filename="meshes/top_bl.stl" scale="0.001 0.001 0.001"/>
+			</geometry>
+		</collision> 
+	</link>
+
+	<link name="top_br">
+		<inertial> 
+			<origin rpy="0 0 0" xyz="-7.66053886991358e-15 -0.04226831623494311 -0.026584385007800988"/>
+			<mass value="0.3"/>
+			<inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0.0" izz="1"/>
+		</inertial>
+		<visual> 
+			<origin rpy="0 0 0" xyz="0.395 0.11 -0.025"/>
+			<geometry> 
+				<mesh filename="meshes/top_br.stl" scale="0.001 0.001 0.001"/>
+			</geometry>
+			<material name="top_color"/>
+		</visual>
+		<collision> 
+			<origin rpy="0 0 0" xyz="0.395 0.11 -0.025"/>
+			<geometry> 
+				<mesh filename="meshes/top_br.stl" scale="0.001 0.001 0.001"/>
+			</geometry>
+		</collision> 
+	</link>
+	
+	<!--    BOTTOM PARTS    --->
+
+	<link name="bot_fl">
+		<inertial> 
+			<origin rpy="0 0 0" xyz="-2.220446049250313e-16 -0.024999999999999883 -0.131028362799"/>
+			<mass value="0.3"/>
+			<inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0.0" izz="1"/>
+		</inertial>
+		<visual> 
+			<origin rpy="0 0 0" xyz="0.105 -0.155 0.144567"/>
+			<geometry> 
+				<mesh filename="meshes/bot_fl.stl" scale="0.001 0.001 0.001"/>
+			</geometry>
+			<material name="bot_color"/>
+		</visual>
+		<collision> 
+			<origin rpy="0 0 0" xyz="0.105 -0.155 0.144567"/>
+			<geometry> 
+				<mesh filename="meshes/bot_fl.stl" scale="0.001 0.001 0.001"/>
+			</geometry>
+			<contact_coefficients mu="0" kp="0" kd="0"/>
+		</collision> 
+	</link>
+	
+	<link name="bot_fr">
+		<inertial> 
+			<origin rpy="0 0 0" xyz="-1.942890293094024e-16 0.024999999999999772 -0.13102836279900004"/>
+			<mass value="0.3"/>
+			<inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0.0" izz="1"/>
+		</inertial>
+		<visual> 
+			<origin rpy="0 0 0" xyz="0.105 0.155 0.144567"/>
+			<geometry> 
+				<mesh filename="meshes/bot_fr.stl" scale="0.001 0.001 0.001"/>
+			</geometry>
+			<material name="bot_color"/>
+		</visual>
+		<collision> 
+			<origin rpy="0 0 0" xyz="0.105 0.155 0.144567"/>
+			<geometry> 
+				<mesh filename="meshes/bot_fr.stl" scale="0.001 0.001 0.001"/>
+			</geometry>
+			<contact_coefficients mu="0" kp="0" kd="0"/>
+		</collision> 
+	</link>
+	
+	<link name="bot_bl">
+		<inertial> 
+			<origin rpy="0 0 0" xyz="-0.0034040482403004946 -0.02500000000000005 -0.09052864342761499"/>
+			<mass value="0.3"/>
+			<inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0.0" izz="1"/>
+		</inertial>
+		<visual> 
+			<origin rpy="0 0 0" xyz="0.395 -0.155 0.144567"/>
+			<geometry> 
+				<mesh filename="meshes/bot_bl.stl" scale="0.001 0.001 0.001"/>
+			</geometry>
+			<material name="bot_color"/>
+		</visual>
+		<collision> 
+			<origin rpy="0 0 0" xyz="0.395 -0.155 0.144567"/>
+			<geometry> 
+				<mesh filename="meshes/bot_bl.stl" scale="0.001 0.001 0.001"/>
+			</geometry>
+			<contact_coefficients mu="0" kp="0" kd="0"/>
+		</collision> 
+	</link>
+
+	<link name="bot_br">
+		<inertial> 
+			<origin rpy="0 0 0" xyz="-0.003404048240300661 -0.02499999999999998 -0.09052864342761494"/>
+			<mass value="0.3"/>
+			<inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0.0" izz="1"/>
+		</inertial>
+		<visual> 
+			<origin rpy="0 0 0" xyz="0.395 0.105 0.144567"/>
+			<geometry> 
+				<mesh filename="meshes/bot_br.stl" scale="0.001 0.001 0.001"/>
+			</geometry>
+			<material name="bot_color"/>
+		</visual>
+		<collision> 
+			<origin rpy="0 0 0" xyz="0.395 0.105 0.144567"/>
+			<geometry> 
+				<mesh filename="meshes/bot_br.stl" scale="0.001 0.001 0.001"/>
+			</geometry>
+			<contact_coefficients mu="0" kp="0" kd="0"/>
+		</collision> 
+	</link>
+
+
+	<!--    SCAP JOINT    --->
+	
+	<joint name="sh_fl_x" type="continuous">
+		<origin rpy="0 0 0" xyz="-0.195 0.13 0.025"/>
+        <parent link="base_link"/>
+        <child link="scap_fl"/>
+		<axis xyz="1 0 0"/>
+		<dynamics friction="0" damping="0"/>
+    </joint>
+	
+	<joint name="sh_fr_x" type="continuous">
+		<origin rpy="0 0 0" xyz="-0.195 -0.13 0.025"/>
+        <parent link="base_link"/>
+        <child link="scap_fr"/>
+		<axis xyz="1 0 0"/>
+		<dynamics friction="0" damping="0"/>
+    </joint>
+	
+	<joint name="sh_bl_x" type="continuous">
+		<origin rpy="0 0 0" xyz="-0.305 0.13 0.025"/>
+        <parent link="base_link"/>
+        <child link="scap_bl"/>
+		<axis xyz="1 0 0"/>
+		<dynamics friction="0" damping="0"/>
+    </joint>
+	
+	<joint name="sh_br_x" type="continuous">
+		<origin rpy="0 0 0" xyz="-0.305 -0.13 0.025"/>
+        <parent link="base_link"/>
+        <child link="scap_br"/>
+		<axis xyz="1 0 0"/>
+		<dynamics friction="0" damping="0"/>
+    </joint>
+
+	<!--    TOP JOINT    --->
+	
+	<joint name="sh_fl_y" type="continuous">
+		<origin rpy="0 0 0" xyz="0.09 -0.016 0.0"/>
+        <parent link="scap_fl"/>
+        <child link="top_fl"/>
+		<axis xyz="0 1 0"/>
+		<dynamics friction="0" damping="0"/>
+    </joint>
+	
+	<joint name="sh_fr_y" type="continuous">
+		<origin rpy="0 0 0" xyz="0.09 -0.02 0.0"/>
+        <parent link="scap_fr"/>
+        <child link="top_fr"/>
+		<axis xyz="0 1 0"/>
+		<dynamics friction="0" damping="0"/>
+    </joint>
+	
+	<joint name="sh_bl_y" type="continuous">
+		<origin rpy="0 0 0" xyz="-0.09 -0.02 0.0"/>
+        <parent link="scap_bl"/>
+        <child link="top_bl"/>
+		<axis xyz="0 1 0"/>
+		<dynamics friction="0" damping="0"/>
+    </joint>
+	
+	<joint name="sh_br_y" type="continuous">
+		<origin rpy="0 0 0" xyz="-0.09 0.02 0.0"/>
+        <parent link="scap_br"/>
+        <child link="top_br"/>
+		<axis xyz="0 1 0"/>
+		<dynamics friction="0" damping="0"/>
+    </joint>
+
+	<!--    BOT JOINT    --->
+	
+	<joint name="el_fl" type="continuous">
+		<origin rpy="0 0 0" xyz="0.0 0.041 -0.169567"/>
+        <parent link="top_fl"/>
+        <child link="bot_fl"/>
+		<axis xyz="0 1 0"/>
+		<dynamics friction="0" damping="0"/>
+    </joint>
+	
+	<joint name="el_fr" type="continuous">
+		<origin rpy="0 0 0" xyz="0.0 -0.005 -0.169567"/>
+        <parent link="top_fr"/>
+        <child link="bot_fr"/>
+		<axis xyz="0 1 0"/>
+		<dynamics friction="0" damping="0"/>
+    </joint>
+	
+	<joint name="el_bl" type="continuous">
+		<origin rpy="0 0 0" xyz="0.0 0.045 -0.169567"/>
+        <parent link="top_bl"/>
+        <child link="bot_bl"/>
+		<axis xyz="0 1 0"/>
+		<dynamics friction="0" damping="0"/>
+    </joint>
+
+	<joint name="el_br" type="continuous">
+		<origin rpy="0 0 0" xyz="0.0 0.005 -0.169567"/>
+        <parent link="top_br"/>
+        <child link="bot_br"/>
+		<axis xyz="0 1 0"/>
+		<dynamics friction="0" damping="0"/>
+    </joint>
+
+
+
+	
+</robot>
