@@ -17,7 +17,7 @@ from models.actor import Actor
 from models.critic import Critic
 
 import config
-
+# coucou
 #tensorboard --logdir=tensorboard --host localhost --port 8088
 
 USE_SYMETRY = config.training['use_symetry']
