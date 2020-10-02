@@ -158,24 +158,6 @@ class PPO:
 		
 		return loss
 	
-	"""
-	(input_signature = [
-									tf.TensorSpec(shape=[], dtype=tf.int64), tf.TensorSpec(shape=[], dtype=tf.bool),
-									[tf.TensorSpec(shape=[None, 256], dtype=tf.float32), tf.TensorSpec(shape=[None, 256], dtype=tf.float32)],
-									[tf.TensorSpec(shape=[None, 256], dtype=tf.float32), tf.TensorSpec(shape=[None, 256], dtype=tf.float32)],
-									tf.TensorSpec(shape=[None, 100, self.env.obs_dim], dtype=tf.float32),
-									tf.TensorSpec(shape=[None, 100, self.env.act_dim], dtype=tf.float32),
-									tf.TensorSpec(shape=[None, 100], dtype=tf.float32),
-									tf.TensorSpec(shape=[None, 100], dtype=tf.float32),
-									tf.TensorSpec(shape=[None, 100], dtype=tf.float32),
-									tf.TensorSpec(shape=[None, 100], dtype=tf.float32),
-									tf.TensorSpec(shape=[None, 100], dtype=tf.float32),
-									tf.TensorSpec(shape=[None, 100], dtype=tf.float32),
-									tf.TensorSpec(shape=[], dtype=tf.float32),
-									tf.TensorSpec(shape=[], dtype=tf.float32),
-									tf.TensorSpec(shape=[], dtype=tf.float32)
-									])
-	"""
 	@tf.function 
 	def train_step (self, n_step, do_log, actor_init_state, critic_init_state, obs, action, advantage, new_value, reward, old_neglog, old_value, mask, learning_rate = 2.5e-4, actor_clip_range = 0.2, critic_clip_range = 1):
 		with tf.GradientTape() as tape:

@@ -6,6 +6,9 @@ from tensorflow.keras import layers
 import config
 
 class BaseActor ():
+	def __init__ (self):
+		self.save_path = "will not work"
+
 	def get_weights (self):
 		return self.core_model.get_weights()
 		
@@ -20,6 +23,7 @@ class BaseActor ():
 
 class SimpleActor (BaseActor):
 	def __init__ (self, env):
+		super().__init__()
 		self.act_dim = env.act_dim
 		self.obs_dim = env.obs_dim
 		
@@ -36,7 +40,8 @@ class SimpleActor (BaseActor):
 			# using the optional blindfold
 			if hasattr(env, 'blindfold'):
 				obs_ph = env.blindfold.action_blindfold(obs_ph)
-				print("blindfold used")
+			else:
+				print("WARNING (actor) : no blindfold used")
 			
 		with tf.name_scope("core_model"):
 			obs_input = layers.Input(shape=(None, obs_ph.shape[-1]))
@@ -57,6 +62,7 @@ class SimpleActor (BaseActor):
 
 class MixtureOfExpert (BaseActor):
 	def __init__ (self, env, primitives):
+		super().__init__()
 		self.act_dim = env.act_dim
 		self.obs_dim = env.obs_dim
 		
@@ -76,7 +82,8 @@ class MixtureOfExpert (BaseActor):
 			# using the optional blindfold
 			if hasattr(env, 'blindfold'):
 				obs_ph = env.blindfold.action_blindfold(obs_ph)
-				print("blindfold used")
+			else:
+				print("WARNING (actor) : no blindfold used")
 			
 		with tf.name_scope("core_model"):
 			obs_input = layers.Input(shape=(None, obs_ph.shape[-1]))
