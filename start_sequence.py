@@ -11,13 +11,17 @@ class ProcessNode:
 		self.output_links = []
 		self.data = data
 		
-		self.proc = configuration.nodes.get_process(self.data['type'])
+		self.proc = configuration.nodes.get_process(data['type'])
+		self.proc.data = data
 		
 	def run (self):
-		self.data.update(self.input_dict) # do we really want to do that ?
+		#self.data.update(self.input_dict) # do we really want to do that ?
 		
 		#TODO : run the actual computation and update the self.output_dict
+		"""
 		print("Running {} \t With type {}".format(self.data['name'], self.data['type']))
+		print("Args : " + str(self.input_dict))
+		"""
 		self.proc.run(self.input_dict, self.output_dict)
 		"""
 		for link in self.output_links:
@@ -55,9 +59,11 @@ if __name__ == "__main__":
 	
 	# calculating the execution order
 	requirement_nb = {}
+	dest_nb = {}
 	target_nodes = []
 	for key in proc_dict.keys():
 		requirement_nb[key] = len(proc_dict[key].input_links)
+		dest_nb[key] = len(proc_dict[key].output_links)
 		if len(proc_dict[key].output_links) == 0:
 			target_nodes.append(key)
 	
@@ -70,14 +76,21 @@ if __name__ == "__main__":
 				requirement_nb[link['to_node']] -= 1
 		else:
 			for link in proc_dict[target_nodes[-1]].input_links:
-				target_nodes.append(link['from_node'])
+				if dest_nb[link['from_node']] == 1:
+					target_nodes.append(link['from_node'])
+					dest_nb[link['from_node']] -= 1
+				else:
+					dest_nb[link['from_node']] -= 1
 	
 	# executing the stacked processes
 	for proc in proc_stack:
 		proc_dict[proc].run()
 		
 		for link in proc_dict[proc].output_links:
-			proc_dict[link['to_node']].input_dict[link['to_socket']] = proc_dict[proc].output_dict[link['from_socket']]
+			if link['to_socket'] in proc_dict[link['to_node']].input_dict:
+				proc_dict[link['to_node']].input_dict[link['to_socket']].append(proc_dict[proc].output_dict[link['from_socket']])
+			else:
+				proc_dict[link['to_node']].input_dict[link['to_socket']] = [proc_dict[proc].output_dict[link['from_socket']]]
 			
 	
 	
