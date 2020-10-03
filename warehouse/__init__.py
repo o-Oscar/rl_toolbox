@@ -70,14 +70,14 @@ def send_adr ():
 
 # current node storage system
 
-cur_node = ""
+cur_node = "__start__"
 
 def store_node (new_values):
 	global cur_node
 	cur_node = new_values
 
 def node_sendable ():
-	return not cur_node == ""
+	return not cur_node == "__start__"
 
 def send_node ():
 	return cur_node

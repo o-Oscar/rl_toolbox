@@ -2,14 +2,14 @@
 <TrainingRun>
 	<Processes>
 		<Process name="Cart Pole Env.001" type="CartPoleNode"/>
-		<Process name="Train (PPO).004" rollout_len_prop="100" tensorboard_name_prop="expert" type="TrainPPONode"/>
-		<Process name="Cart Pole Env" type="CartPoleNode"/>
-		<Process name="Simple Actor.002" save_name_prop="swingup" type="SimpleActorNode"/>
 		<Process name="Simple Actor" save_name_prop="stabilize" type="SimpleActorNode"/>
-		<Process name="Train (PPO)" rollout_len_prop="100" tensorboard_name_prop="swingup" type="TrainPPONode"/>
-		<Process name="Mix Actor" save_name_prop="expert" type="MixActorNode"/>
-		<Process name="Train (PPO).002" rollout_len_prop="100" tensorboard_name_prop="stabilize" type="TrainPPONode"/>
+		<Process name="Simple Actor.002" save_name_prop="swingup" type="SimpleActorNode"/>
+		<Process name="Cart Pole Env" type="CartPoleNode"/>
+		<Process epoch_nb_prop="200" model_save_interval_prop="10" name="Train (PPO).002" rollout_len_prop="100" rollout_nb_prop="8" tensorboard_name_prop="stabilize" train_step_nb_prop="12" type="TrainPPONode"/>
 		<Process name="Cart Pole Env.002" type="CartPoleNode"/>
+		<Process name="Mix Actor" save_name_prop="expert" type="MixActorNode"/>
+		<Process epoch_nb_prop="200" model_save_interval_prop="10" name="Train (PPO).004" rollout_len_prop="100" rollout_nb_prop="8" tensorboard_name_prop="expert" train_step_nb_prop="12" type="TrainPPONode"/>
+		<Process epoch_nb_prop="200" model_save_interval_prop="10" name="Train (PPO)" rollout_len_prop="100" rollout_nb_prop="8" tensorboard_name_prop="swingup" train_step_nb_prop="12" type="TrainPPONode"/>
 	</Processes>
 	<Links>
 		<Link from_node="Cart Pole Env" from_socket="Env" to_node="Train (PPO)" to_socket="Environment"/>

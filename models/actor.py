@@ -54,7 +54,7 @@ class SimpleActor (BaseActor):
 			#self.model.summary()
 		
 		
-		self.model = tf.keras.Model((input, ()), (self.core_model(obs_ph), ()), name="actor_model")
+		self.model = tf.keras.Model((input, ()), (self.core_model(obs_ph)[0], ()), name="actor_model")
 		
 	def get_init_state(self, n_env):
 		#init_state_shape = (n_env, self.lstm_size)
@@ -66,7 +66,6 @@ class MixtureOfExpert (BaseActor):
 		self.act_dim = env.act_dim
 		self.obs_dim = env.obs_dim
 		
-		#primitives = primitives[:1]
 		self.primitive_nb = len(primitives)
 		
 		with tf.name_scope("input_process"):
@@ -110,7 +109,7 @@ class MixtureOfExpert (BaseActor):
 			#self.model.summary()
 		
 		
-		self.model = tf.keras.Model((input, ()), (self.core_model(obs_ph), ()), name="actor_model")
+		self.model = tf.keras.Model((input, ()), (self.core_model(obs_ph)[0], ()), name="actor_model")
 		
 	def get_init_state(self, n_env):
 		#init_state_shape = (n_env, self.lstm_size)

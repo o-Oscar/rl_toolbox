@@ -14,12 +14,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 #tensorboard --logdir=tensorboard --host localhost --port 8088
 
-from models.actor import Actor
 from models.critic import Critic
-
-import config
-
-USE_SYMETRY = config.training['use_symetry']
 
 """
 if USE_SYMETRY:
@@ -27,22 +22,19 @@ if USE_SYMETRY:
 """
 
 class PPO:
-	def __init__ (self, env, create_save_folder=False):
+	def __init__ (self, env, actor, tensorboard_log=""):
+		
+		if not tensorboard_log == "":
+			self.writer = tf.summary.create_file_writer(tensorboard_log)
+		
+		self.model_save_interval = 5
+		
 		self.env = env
-		self.actor = Actor(env)
+		self.actor = actor # Actor(env)
 		self.critic = Critic(env)
 		
-		
-		if create_save_folder:
-			self.create_save_folder()
-		
-		if config.training["use_init_model"]:
-			path = config.training["init_model_path"]
-			self.restore(path)
-	
-		if config.training["lock_primitive"]:
-			self.actor.lock_primitive()
-			
+		self.USE_SYMETRY = hasattr(self.env, 'symetry')
+
 		self.gamma = 0.95
 		self.lam = 0.9
 		
@@ -131,7 +123,7 @@ class PPO:
 						approxkl = .5 * tf.reduce_mean(tf.square(train_neglog - old_neglog))
 					with tf.name_scope("clipfrac"):
 						clipfrac = tf.reduce_mean(tf.multiply(tf.cast(tf.greater(tf.abs(ratio - 1.0), actor_clip_range), tf.float32), mask))/tf.reduce_mean(mask)
-			if USE_SYMETRY:
+			if self.USE_SYMETRY:
 				with tf.name_scope("symetry"):
 					symetry_loss = self.env.symetry.loss(self.actor, obs, actor_init_state, mask)
 			# l'entropie ne sert a rien pk ell est constante
@@ -139,7 +131,7 @@ class PPO:
 			with tf.name_scope("loss"):
 				#self.loss = self.actor_loss - self.entropy * 0.01 + self.critic_loss * 0.5
 				loss = actor_loss + critic_loss * 0.5
-				if USE_SYMETRY:
+				if self.USE_SYMETRY:
 					loss = loss + symetry_loss * 4
 		
 		if self.writer is not None and do_log:
@@ -150,7 +142,7 @@ class PPO:
 					tf.summary.scalar('critic_loss', critic_loss, n_step)
 					tf.summary.scalar('mean_ep_len', tf.reduce_mean(tf.reduce_sum(mask, axis=1)), n_step)
 				with tf.name_scope("optimized"):
-					if USE_SYMETRY:
+					if self.USE_SYMETRY:
 						tf.summary.scalar('symetry_loss', symetry_loss, n_step)
 					tf.summary.scalar('discounted_rewards', tf.reduce_mean(tf.multiply(old_value + advantage, mask))/tf.reduce_mean(mask), n_step)
 					tf.summary.scalar('mean_rew', tf.reduce_mean(tf.multiply(reward, mask))/tf.reduce_mean(mask), n_step)
@@ -183,7 +175,7 @@ class PPO:
 		self.optimizer.learning_rate = learning_rate
 		self.optimizer.apply_gradients(grad_and_var)
 	
-	def get_rollout (self):
+	def get_rollout (self, rollout_len):
 		# --- simulating the environements ---
 		current_s = self.env.reset()
 		current_s = np.expand_dims(np.stack(current_s), axis=1)
@@ -199,7 +191,7 @@ class PPO:
 		n_env_done = 0
 		t = 0
 		
-		while t < config.training["rollout_len"]:
+		while t < rollout_len:#config.training["rollout_len"]:
 			t += 1
 			current_s = np.asarray(current_s, dtype=np.float32)
 			current_a, current_actor_init_state, current_neglog = self.step (current_s, current_actor_init_state)
@@ -239,7 +231,7 @@ class PPO:
 		
 		return (all_s, all_a, all_r, all_neglog, all_masks)
 	
-	def train_networks (self, n, all_s, all_a, all_r, all_neglog, all_masks):
+	def train_networks (self, n, all_s, all_a, all_r, all_neglog, all_masks, train_step_nb):
 		num_envs = all_s.shape[0]
 		
 		# --- calculating gae ---
@@ -262,7 +254,7 @@ class PPO:
 		all_new_value = all_new_value.astype(np.float32)
 		
 		# --- training the networks ---
-		for i in range(config.training["ppo_train_step_nb"]):
+		for i in range(train_step_nb):
 			n_step = tf.constant(n, dtype=tf.int64)
 			do_log = tf.convert_to_tensor((n%self.log_interval==0 and i == 0), dtype=tf.bool)
 			
@@ -282,9 +274,10 @@ class PPO:
 								critic_clip_range = 1)
 
 		# --- save the model ---
-		if self.model_path is not None and (n+1)%self.model_save_interval == 0:
+		if (n+1)%self.model_save_interval == 0:
 			self.save()
-			
+	
+	"""
 	def create_save_folder (self):
 		exp_name = "default"
 		if len(sys.argv) > 1:
@@ -304,18 +297,17 @@ class PPO:
 		self.model_save_interval = config.training["ppo_save_interval"]
 		
 		self.writer = tf.summary.create_file_writer(tensorboard_log)
+	"""
 	
 	def save (self):
-		path = osp.join(self.model_path, "{}_{}")
+		path = self.actor.save_path# osp.join(self.actor.save_path, "{}")
 		print("Model saved at : " + path.replace("\\", "\\\\"))
-		self.actor.save_primitive(path)
-		self.actor.save_influence(path)
-		self.critic.model.save_weights(path.format("critic", "model"), overwrite=True)
+		self.actor.save(path)
+		self.critic.model.save_weights(path.format("critic"), overwrite=True)
 	
 	def restore (self, path):
-		self.actor.load_influence(path)
-		self.actor.load_primitive(path)
-		self.critic.model.load_weights(path.format("critic", "model"))
+		self.actor.save(path)
+		self.critic.model.load_weights(path.format("critic"))
 			
 	def get_weights (self):
 		return self.actor.get_weights()

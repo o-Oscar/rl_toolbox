@@ -9,7 +9,9 @@ import warehouse
 
 
 """
-mpiexec -n 4 python start_sequence.py exp_0
+mpiexec -n 10 python start_sequence.py exp_0
+
+tensorboard --logdir=results/exp_0/tensorboard --host localhost --port 6006
 """
 
 class ProcessNode:
@@ -56,7 +58,7 @@ if __name__ == "__main__":
 			proc_dict[attrib['from_node']].output_links.append(attrib)
 			proc_dict[attrib['to_node']].input_links.append(attrib)
 
-		if DEBUG:
+		if DEBUG and mpi_role == 'main':
 			type_outputs = {}
 			for node in proc_dict.values():
 				if not node.data['type'] in type_outputs:
@@ -123,7 +125,8 @@ if __name__ == "__main__":
 				else:
 					proc_dict[link['to_node']].input_dict[link['to_socket']] = [proc_dict[proc].output_dict[link['from_socket']]]
 		
+		
 		# closing everything
-		warehouse.send({}, work_done=True)
+		warehouse.send({"node":"__end__"}, work_done=True)
 	
 	
