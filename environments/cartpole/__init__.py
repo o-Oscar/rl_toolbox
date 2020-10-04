@@ -9,8 +9,6 @@ from scipy.integrate import odeint
 
 clamp = lambda x, minx, maxx: max(min(maxx, x), minx)
 
-import config
-
 # ------------------------------ OBSERVATION CONFIG ------------------------------
 
 """
@@ -39,9 +37,7 @@ class CartPoleEnv():
 		self.obs_stack = []
 		
 		# --- env info ---
-		self.obs_dim = 11 * self.obs_stack_len
-		if config.training['use_blindfold']:
-			self.obs_dim *= 2
+		self.obs_dim = 11 * self.obs_stack_len * 2
 		self.act_dim = 1
 		self.num_envs = 1
 		self.adr = Adr()
@@ -90,10 +86,7 @@ class CartPoleEnv():
 		self.min_e_clamp = 0.95
 		self.max_e_clamp = 1.05
 		
-		if config.training['use_blindfold']:
-			blind = 2
-		else:
-			blind = 1
+		blind = 2
 		self.observation_low = np.array(([
 			-self.x_total_max, -self.v_max,
 			-1, -1, -self.sin_clamp,
@@ -105,6 +98,10 @@ class CartPoleEnv():
 			np.sqrt(self.max_usable_e*4*self.mrgsJ), 1,
 			self.max_usable_e, self.max_e_clamp] + [1] + [1])*blind)
 
+		# 0 : swing up
+		# 1 : stabilize
+		self.mode = 0 # 1 if np.random.random() > c_mode else 0
+		
 
 	def dysdt (self, y, t, delta_v):
 		a, w = y
@@ -198,10 +195,6 @@ class CartPoleEnv():
 	
 	def reset(self, zero=False, c_mode=0.5):
 		
-		# 0 : swing up
-		# 1 : stabilize
-		self.mode = 0 # 1 if np.random.random() > c_mode else 0
-		
 		self.adr.reset()
 	
 		self.mrgsJ = self.get_adr_param("min_mrgsJ", "max_mrgsJ")
@@ -284,11 +277,7 @@ class CartPoleEnv():
 		return self.calc_true_obs (x, v, a, w, self.calc_e(x, v, a, w))
 		
 	def stack_obs (self, x, v, a, w, e, mes_x, mes_v, mes_a, mes_w, mes_e):
-		if config.training['use_blindfold']:
-			self.obs_stack.append((np.array(self.calc_true_obs(x, v, a, w, e) + self.calc_true_obs(mes_x, mes_v, mes_a, mes_w, mes_e))-self.observation_low)*2/(self.observation_high-self.observation_low) - 1)
-			#self.obs_stack.append((np.array(self.calc_true_obs(x, v, a, w, e) * 2)-self.observation_low)*2/(self.observation_high-self.observation_low) - 1)
-		else:
-			self.obs_stack.append((np.array(self.calc_true_obs(x, v, a, w, e))-self.observation_low)*2/(self.observation_high-self.observation_low) - 1)
+		self.obs_stack.append((np.array(self.calc_true_obs(x, v, a, w, e) + self.calc_true_obs(mes_x, mes_v, mes_a, mes_w, mes_e))-self.observation_low)*2/(self.observation_high-self.observation_low) - 1)
 		
 	def calc_obs (self, x, v, a, w, e, true_obs=False):
 		while len(self.obs_stack) > self.obs_stack_len:

@@ -1,28 +1,28 @@
 <?xml version="1.0" ?>
 <TrainingRun>
 	<Processes>
-		<Process name="Cart Pole Env.001" type="CartPoleNode"/>
 		<Process name="Simple Actor" save_name_prop="stabilize" type="SimpleActorNode"/>
 		<Process name="Simple Actor.002" save_name_prop="swingup" type="SimpleActorNode"/>
-		<Process name="Cart Pole Env" type="CartPoleNode"/>
 		<Process epoch_nb_prop="200" model_save_interval_prop="10" name="Train (PPO).002" rollout_len_prop="100" rollout_nb_prop="8" tensorboard_name_prop="stabilize" train_step_nb_prop="12" type="TrainPPONode"/>
-		<Process name="Cart Pole Env.002" type="CartPoleNode"/>
+		<Process epoch_nb_prop="200" model_save_interval_prop="10" name="Train (PPO)" rollout_len_prop="100" rollout_nb_prop="8" tensorboard_name_prop="swingup" train_step_nb_prop="12" type="TrainPPONode"/>
+		<Process mode_prop="1" name="Cart Pole Env.001" type="CartPoleNode"/>
+		<Process mode_prop="0" name="Cart Pole Env.002" type="CartPoleNode"/>
 		<Process name="Mix Actor" save_name_prop="expert" type="MixActorNode"/>
 		<Process epoch_nb_prop="200" model_save_interval_prop="10" name="Train (PPO).004" rollout_len_prop="100" rollout_nb_prop="8" tensorboard_name_prop="expert" train_step_nb_prop="12" type="TrainPPONode"/>
-		<Process epoch_nb_prop="200" model_save_interval_prop="10" name="Train (PPO)" rollout_len_prop="100" rollout_nb_prop="8" tensorboard_name_prop="swingup" train_step_nb_prop="12" type="TrainPPONode"/>
+		<Process mode_prop="0" name="Cart Pole Env" type="CartPoleNode"/>
 	</Processes>
 	<Links>
-		<Link from_node="Cart Pole Env" from_socket="Env" to_node="Train (PPO)" to_socket="Environment"/>
 		<Link from_node="Cart Pole Env.002" from_socket="Env" to_node="Train (PPO).004" to_socket="Environment"/>
 		<Link from_node="Cart Pole Env.001" from_socket="Env" to_node="Train (PPO).002" to_socket="Environment"/>
 		<Link from_node="Simple Actor.002" from_socket="Actor" to_node="Train (PPO)" to_socket="Actor"/>
-		<Link from_node="Cart Pole Env" from_socket="Env" to_node="Simple Actor.002" to_socket="Env"/>
 		<Link from_node="Simple Actor" from_socket="Actor" to_node="Train (PPO).002" to_socket="Actor"/>
 		<Link from_node="Cart Pole Env.001" from_socket="Env" to_node="Simple Actor" to_socket="Env"/>
 		<Link from_node="Train (PPO)" from_socket="Trained actor" to_node="Mix Actor" to_socket="Primitive"/>
 		<Link from_node="Train (PPO).002" from_socket="Trained actor" to_node="Mix Actor" to_socket="Primitive"/>
 		<Link from_node="Cart Pole Env.002" from_socket="Env" to_node="Mix Actor" to_socket="Env"/>
 		<Link from_node="Mix Actor" from_socket="Actor" to_node="Train (PPO).004" to_socket="Actor"/>
+		<Link from_node="Cart Pole Env" from_socket="Env" to_node="Simple Actor.002" to_socket="Env"/>
+		<Link from_node="Cart Pole Env" from_socket="Env" to_node="Train (PPO)" to_socket="Environment"/>
 	</Links>
 	<!--Generated from blender-->
 </TrainingRun>

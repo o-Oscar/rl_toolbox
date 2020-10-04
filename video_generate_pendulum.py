@@ -11,7 +11,7 @@ import time
 from environments.simple_env import SimpleEnv
 from environments.cartpole import CartPoleEnv
 
-from models.actor import Actor
+from models.actor import SimpleActor, MixtureOfExpert
 
 #import blindfold
 
@@ -22,19 +22,22 @@ if __name__ == '__main__':
 	debug = True
 	render = False
 	load_trained = True
+	actor_type = "mix"
 	
 	#env = SimpleEnv()
 	env = CartPoleEnv()
 
 	#path = "results\\default\\models\\{}_{}"
-	path = "results\\exp_0\\models\\{}_{}"
+	path = "results\\exp_0\\models\\expert\\{}"
 	
-	actor = Actor(env)
+	if actor_type=="mix":
+		primitives = [SimpleActor(env) for i in range(2)]
+		actor = MixtureOfExpert(env, primitives, debug=True)
+		
 	if load_trained:
-		actor.load_primitive(path)
-		actor.load_influence(path)
+		actor.load(path)
 	
-	obs = env.reset(zero=False, c_mode=0)
+	obs = env.reset(zero=True, c_mode=0)
 	init_state = actor.get_init_state(env.num_envs)
 	
 	all_rew = []
@@ -45,33 +48,18 @@ if __name__ == '__main__':
 	all_act = []
 	all_states = []
 	all_e = []
+	all_inf = []
 	
 	for i in range(300):
 		"""
 		events = p.getKeyboardEvents()
-		speed = 1
-		rot = 0
 		if 113 in events:
-			rot += 1
-		if 100 in events:
-			rot -= 1
-		if 115 in events:
-			speed -=1
-		if 122 in events:
-			speed +=1
-		"""
-		"""
-		if speed == 0:
-			rot = 0
-		"""
-		"""
-		speed = 0
-		rot = 0
 		"""
 		env.n = 0
 		obs = np.expand_dims(np.asarray(obs, dtype=np.float32), axis=1)
 		start = time.time()
 		act, init_state = actor.model((obs, init_state))
+		all_inf.append(actor.inf_model((obs, init_state))[0].numpy())
 		dur = time.time()-start
 		act = act.numpy()# * 0 + 0#[0.1, 0.1]
 		#print(act)
@@ -94,6 +82,9 @@ if __name__ == '__main__':
 	plt.legend()
 	plt.show()
 	
+	plt.plot(np.squeeze(all_inf))
+	plt.show()
+		
 	print(np.any(all_done))
 	for i in range(4):
 		plt.plot([s[i] for s in all_states])

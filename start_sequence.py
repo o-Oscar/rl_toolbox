@@ -25,8 +25,8 @@ class ProcessNode:
 		self.proc = configuration.nodes.get_process(data['type'])(mpi_role)
 		self.proc.data = data
 		
-	def run (self, save_paths):
-		self.proc.run(save_paths, self.input_dict, self.output_dict)
+	def run (self, save_paths, proc_num):
+		self.proc.run(save_paths, proc_num, self.input_dict, self.output_dict)
 
 DEBUG = True
 
@@ -65,8 +65,8 @@ if __name__ == "__main__":
 					type_outputs[node.data['type']] = set()
 				for link in node.output_links:
 					type_outputs[node.data['type']].add(link['from_socket'])
-			print("Expected node outputs : ")
-			print(type_outputs)
+			print("Expected node outputs : ", flush=True)
+			print(type_outputs, flush=True)
 
 		# calculating the execution order
 		requirement_nb = {}
@@ -115,9 +115,8 @@ if __name__ == "__main__":
 
 
 		# executing the stacked processes
-		for proc in proc_stack:
-			warehouse.send({"node":proc})
-			proc_dict[proc].run(paths)
+		for proc_num, proc in enumerate(proc_stack):
+			proc_dict[proc].run(paths, proc_num)
 			
 			for link in proc_dict[proc].output_links:
 				if link['to_socket'] in proc_dict[link['to_node']].input_dict:
@@ -127,6 +126,6 @@ if __name__ == "__main__":
 		
 		
 		# closing everything
-		warehouse.send({"node":"__end__"}, work_done=True)
+		warehouse.send({"node":len(proc_stack)}, work_done=True)
 	
 	

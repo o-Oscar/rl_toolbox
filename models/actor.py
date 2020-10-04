@@ -61,7 +61,7 @@ class SimpleActor (BaseActor):
 		return () #(np.zeros(init_state_shape), np.zeros(init_state_shape))
 
 class MixtureOfExpert (BaseActor):
-	def __init__ (self, env, primitives):
+	def __init__ (self, env, primitives, debug=False):
 		super().__init__()
 		self.act_dim = env.act_dim
 		self.obs_dim = env.obs_dim
@@ -94,12 +94,17 @@ class MixtureOfExpert (BaseActor):
 			influence = tf.expand_dims(influence, axis=2)
 			
 			# primitives
-			primitives_cpy = []
+			self.primitives_cpy = []
 			for i, prim in enumerate(primitives):
 				#prim.name = str(i) + "coucou"
-				primitives_cpy.append(tf.keras.Model(inputs=prim.core_model.input, outputs=prim.core_model.output, name='primitive_'+str(i)))
+				self.primitives_cpy.append(tf.keras.Model(inputs=prim.core_model.input, outputs=prim.core_model.output, name='primitive_'+str(i)))
 			
-			primitives_actions = [prim(obs_input)[0] for prim in primitives_cpy]
+			for prim in self.primitives_cpy:
+				for layer in prim.layers:
+					layer.trainable = True
+	
+			
+			primitives_actions = [prim(obs_input)[0] for prim in self.primitives_cpy]
 			primitives_actions = tf.stack(primitives_actions, axis=3)
 			
 			# action
@@ -110,6 +115,10 @@ class MixtureOfExpert (BaseActor):
 		
 		
 		self.model = tf.keras.Model((input, ()), (self.core_model(obs_ph)[0], ()), name="actor_model")
+		
+		if debug:
+			core_inf_model = tf.keras.Model((obs_input, ()), (influence, ()), name="core_inf_model")
+			self.inf_model = tf.keras.Model((input, ()), (core_inf_model(obs_ph)[0], ()), name="inf_model")
 		
 	def get_init_state(self, n_env):
 		#init_state_shape = (n_env, self.lstm_size)

@@ -70,19 +70,22 @@ def send_adr ():
 
 # current node storage system
 
-cur_node = "__start__"
+cur_node = -1
 
 def store_node (new_values):
 	global cur_node
-	cur_node = new_values
+	if new_values > cur_node:
+		for key in rollout_comp:
+			rollouts[key] = []
+			rollouts_nb[key] = 0
+	cur_node = max(cur_node, new_values)
 
 def node_sendable ():
-	return not cur_node == "__start__"
+	return not cur_node == -1
 
 def send_node ():
 	return cur_node
-
-
+	
 
 
 # tags
@@ -131,14 +134,18 @@ def work_loop ():
 			notified_procs += 1
 			print("notified_procs", notified_procs, flush=True)
 		
+		do_store = not "node" in data or data["node"] >= cur_node
+		
 		# process and store the message's data
 		# and add the message's request to the stack
 		for key, value in data.items():
 			if key == "request":
 				request_stack.append((status.Get_source(), value))
 				
-			else:
+			elif do_store:
 				store_dict[key](value)
+					
+					
 		# try to process the requests that can be
 		not_processed = []
 		while request_stack:
