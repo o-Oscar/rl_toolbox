@@ -101,7 +101,10 @@ class CartPoleEnv():
 		# 0 : swing up
 		# 1 : stabilize
 		self.mode = 0 # 1 if np.random.random() > c_mode else 0
-		
+		self.test_adr = False
+		self.adr_rollout_len = 300
+		self.has_reached_top = False
+		self.has_fallen = False
 
 	def dysdt (self, y, t, delta_v):
 		a, w = y
@@ -176,7 +179,12 @@ class CartPoleEnv():
 		if self.done:
 			reward -= 1
 		
-		self.adr.step(reward, self.done)
+		self.has_reached_top = self.has_reached_top or np.cos(a) > 1-0.25
+		self.has_fallen = self.has_fallen or (self.has_reached_top and np.cos(a) < 1-0.5)
+		self.step_nb_on_top += 1 if self.has_reached_top and not self.has_fallen else 0
+		success = (not self.done) and (not self.has_fallen) and self.step_nb_on_top > 50
+		failure = self.done# or self.has_fallen
+		self.adr.step(success, not success)
 		
 		#self.stack_obs(x, v, cur_mes_a, mes_w, e)
 		mes_x = x
@@ -193,10 +201,15 @@ class CartPoleEnv():
 			to_return = self.adr.value(name_min)
 		return to_return
 	
-	def reset(self, zero=False, c_mode=0.5):
+	def reset(self, zero=False):
 		
 		self.adr.reset()
-	
+		self.has_reached_top = False
+		self.has_fallen = False
+		self.step_nb_on_top = 0
+		
+		zero = zero or self.test_adr
+		
 		self.mrgsJ = self.get_adr_param("min_mrgsJ", "max_mrgsJ")
 		self.mrsJ = self.mrgsJ/self.gravity
 		

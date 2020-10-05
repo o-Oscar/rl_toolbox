@@ -56,6 +56,22 @@ class LoadActorNode:
 			
 			#save the actor
 			actor.save(actor.save_path)
+
+from models.critic import Critic
+
+class LoadCriticNode:
+	def __init__ (self, mpi_role):
+		self.mpi_role = mpi_role
+	
+	def run (self, save_path, proc_num, input_dict, output_dict):
+		# create the actor
+		env = input_dict['Env'][0]
+		path = self.data['model_path_prop'] + "/{}"
+		critic = Critic (env)
+		if self.mpi_role == 'main':
+			critic.model.load_weights(path.format("critic"))
+		output_dict['Critic'] = critic
+
 			
 class FreePrimitiveNode:
 	def __init__ (self, mpi_role):
@@ -94,17 +110,18 @@ class TrainPPONode:
 		self.mpi_role = mpi_role
 	
 	def run (self, save_path, proc_num, input_dict, output_dict):
-		USE_ADR = True
-		# to test (as a worker) if we keep going : data = warehouse.send({"request":["node"]}) ; self.data['name'] == data['node']"
-		
+	
 		env = input_dict['Environment'][0]
 		actor = input_dict['Actor'][0]
+		log_std = float(self.data['log_std_prop'])
+		
+		USE_ADR = hasattr(env, 'adr')
 		
 		if self.mpi_role == 'main':
 			tensorboard_path = os.path.join(save_path['tensorboard'], self.data['tensorboard_name_prop'])
 			os.makedirs(tensorboard_path)
 			
-			trainer = PPO(env, actor, tensorboard_path)
+			trainer = PPO(env, actor, tensorboard_path, init_log_std=log_std)
 			trainer.model_save_interval = int(self.data['model_save_interval_prop'])
 			train_step_nb = int(self.data['train_step_nb_prop'])
 			if "Critic" in input_dict:
@@ -144,47 +161,48 @@ class TrainPPONode:
 				env.adr.save()
 			env.adr.save()
 		elif self.mpi_role == 'worker':
-			trainer = PPO(env, actor)
+			trainer = PPO(env, actor, init_log_std=log_std)
 			rollout_len = int(self.data['rollout_len_prop'])
 			#data = warehouse.send({"request":["node"]}) ; self.data['name'] == data['node']"
 			msg = {"request" : ["weights", "node"]}
 			data = warehouse.send(msg)
-			
-			#print("worker {} received weights.".format(my_rank), flush=True)
 			
 			while proc_num > data["node"]:
 				time.sleep(0.3)
 				print("sleeping", flush=True)
 			
 			while proc_num == data["node"]:
+				test_adr = USE_ADR and np.random.random() < float(self.data['adr_prob_prop'])
 				
+				env.test_adr = test_adr
+					
 				trainer.set_weights (data["weights"])
 				
-				# simulate rollout
-				all_s, all_a, all_r, all_neglog, all_mask = trainer.get_rollout(rollout_len)
-				
-				# send rollout back to warehouse
-				# and get network weights and update actor
-				msg = {"node":proc_num, 
-						"s" : all_s,
-						"a" : all_a,
-						"r" : all_r,
-						"neglog" : all_neglog,
-						"mask" : all_mask,
-						"request" : ["weights", "adr", "node"]}
-				if USE_ADR:
-					msg["adr"] = env.adr.get_msg()
+				if test_adr:
+					# simulate rollout
+					all_s, all_a, all_r, all_neglog, all_mask = trainer.get_rollout(env.adr_rollout_len)
+					
+					msg = {"node":proc_num, 
+							"adr" : env.adr.get_msg(),
+							"request" : ["weights", "adr", "node"]}
+				else:
+					# simulate rollout
+					all_s, all_a, all_r, all_neglog, all_mask = trainer.get_rollout(rollout_len)
+					
+					# send rollout back to warehouse
+					# and get network weights and update actor
+					msg = {"node":proc_num, 
+							"s" : all_s,
+							"a" : all_a,
+							"r" : all_r,
+							"neglog" : all_neglog,
+							"mask" : all_mask,
+							"request" : ["weights", "adr", "node"]}
 					
 				data = warehouse.send(msg)
 				
 				if USE_ADR:
 					env.adr.update(data["adr"])
-				
-			
-			#print("worker {} closing".format(my_rank), flush=True)
-		
-			#trainer.set_weights (data["weights"])
-			#output_dict['Trained actor'] = input_dict['Actor'][0]
 		
 		
 		output_dict['Trained actor'] = trainer.actor
@@ -196,6 +214,7 @@ type_dict = {
 		'SimpleActorNode':SimpleActorNode,
 		'MixActorNode':MixActorNode,
 		'LoadActorNode':LoadActorNode,
+		'LoadCriticNode':LoadCriticNode,
 		'FreePrimitiveNode':FreePrimitiveNode,
 		'CartPoleNode':CartPoleNode,
 		'TrainPPONode':TrainPPONode,

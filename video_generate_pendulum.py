@@ -22,22 +22,27 @@ if __name__ == '__main__':
 	debug = True
 	render = False
 	load_trained = True
-	actor_type = "mix"
+	actor_type = "simple"
 	
 	#env = SimpleEnv()
 	env = CartPoleEnv()
 
 	#path = "results\\default\\models\\{}_{}"
-	path = "results\\exp_0\\models\\expert\\{}"
+	#path = "results\\good_full\\models\\expert\\{}"
+	path = "results\\exp_0\\models\\swingup\\{}"
 	
 	if actor_type=="mix":
 		primitives = [SimpleActor(env) for i in range(2)]
 		actor = MixtureOfExpert(env, primitives, debug=True)
-		
+	elif actor_type == "simple":
+		actor = SimpleActor(env)
+	
+	
 	if load_trained:
 		actor.load(path)
 	
-	obs = env.reset(zero=True, c_mode=0)
+	env.test_adr = True
+	obs = env.reset()
 	init_state = actor.get_init_state(env.num_envs)
 	
 	all_rew = []
@@ -59,12 +64,13 @@ if __name__ == '__main__':
 		obs = np.expand_dims(np.asarray(obs, dtype=np.float32), axis=1)
 		start = time.time()
 		act, init_state = actor.model((obs, init_state))
-		all_inf.append(actor.inf_model((obs, init_state))[0].numpy())
+		if actor_type=="mix":
+			all_inf.append(actor.inf_model((obs, init_state))[0].numpy())
 		dur = time.time()-start
 		act = act.numpy()# * 0 + 0#[0.1, 0.1]
 		#print(act)
 		all_act.append(act)
-		act = act# + np.random.normal(size=act.flatten().shape[0]).reshape(act.shape) * np.exp(-3)
+		act = act# + np.random.normal(size=act.flatten().shape[0]).reshape(act.shape) * np.exp(-2)
 		#act = act*0 + 0.5 + 0.3/2 * (2*((i//50)%2)-1)
 		#act = np.asarray([0.0, 1.0408382989215212, -1.968988857605835]*4)
 		#act = np.asarray([0.5, 0.5, 0.3]* 4)
@@ -76,16 +82,18 @@ if __name__ == '__main__':
 		all_done.append(done)
 		#print(rew)
 	
+	print(env.adr.success)
 	
 	for i, obs in enumerate(np.asarray(all_obs).reshape((-1, env.obs_dim)).T):
 		plt.plot(obs, label=str(i))
 	plt.legend()
 	plt.show()
 	
-	plt.plot(np.squeeze(all_inf))
-	plt.show()
+	if actor_type=="mix":
+		plt.plot(np.squeeze(all_inf))
+		plt.show()
 		
-	print(np.any(all_done))
+	#print(np.any(all_done))
 	for i in range(4):
 		plt.plot([s[i] for s in all_states])
 	plt.plot(all_e)

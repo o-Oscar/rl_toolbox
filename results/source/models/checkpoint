@@ -1,2 +1,0 @@
-model_checkpoint_path: "expert\\critic"
-all_model_checkpoint_paths: "expert\\critic"

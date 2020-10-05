@@ -22,10 +22,12 @@ if USE_SYMETRY:
 """
 
 class PPO:
-	def __init__ (self, env, actor, tensorboard_log=""):
+	def __init__ (self, env, actor, tensorboard_log="", init_log_std=-2):
 		
 		if not tensorboard_log == "":
 			self.writer = tf.summary.create_file_writer(tensorboard_log)
+		
+		self.init_log_std = init_log_std
 		
 		self.model_save_interval = 5
 		
@@ -40,7 +42,7 @@ class PPO:
 		
 		self.debug_interval = 5
 		self.log_interval = 1
-	
+		
 		
 		self.create_learning_struct ()
 	
@@ -71,9 +73,11 @@ class PPO:
 		# randomize actor (exploration)
 		with tf.name_scope("randomizer"):
 			with tf.name_scope("stochastic"):
-				init_logstd = -2 # dogo 
+				"""
+				#init_logstd = -3 # dogo 
 				#init_logstd = -2 # cartpole 
-				self.logstd = tf.Variable(np.ones((self.actor.act_dim,))*init_logstd, dtype=tf.float32, trainable=False) # ---------- is the std trainable ???
+				"""
+				self.logstd = tf.Variable(np.ones((self.actor.act_dim,))*self.init_log_std, dtype=tf.float32, trainable=False) # ---------- is the std trainable ???
 				self.std = tf.exp(self.logstd)
 	
 	@tf.function
