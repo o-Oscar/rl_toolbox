@@ -1,14 +1,14 @@
 <?xml version="1.0" ?>
 <TrainingRun>
 	<Processes>
-		<Process name="Simple Actor.002" save_name_prop="swingup" type="SimpleActorNode"/>
-		<Process mode_prop="0" name="Cart Pole Env" type="CartPoleNode"/>
-		<Process adr_prob_prop="0.5" epoch_nb_prop="1000" log_std_prop="-2.0" model_save_interval_prop="10" name="Train (PPO).001" rollout_len_prop="100" rollout_nb_prop="8" tensorboard_name_prop="swingup" train_step_nb_prop="12" type="TrainPPONode"/>
+		<Process name="Simple Actor.002" save_name_prop="simple" type="SimpleActorNode"/>
+		<Process adr_prob_prop="0.5" epoch_nb_prop="10" log_std_prop="-2.0" model_save_interval_prop="10" name="Train (PPO).001" rollout_len_prop="100" rollout_nb_prop="8" tensorboard_name_prop="simple" train_step_nb_prop="12" type="TrainPPONode"/>
+		<Process name="Dog Env" type="DogEnvNode"/>
 	</Processes>
 	<Links>
-		<Link from_node="Cart Pole Env" from_socket="Env" to_node="Simple Actor.002" to_socket="Env"/>
 		<Link from_node="Simple Actor.002" from_socket="Actor" to_node="Train (PPO).001" to_socket="Actor"/>
-		<Link from_node="Cart Pole Env" from_socket="Env" to_node="Train (PPO).001" to_socket="Environment"/>
+		<Link from_node="Dog Env" from_socket="Env" to_node="Train (PPO).001" to_socket="Environment"/>
+		<Link from_node="Dog Env" from_socket="Env" to_node="Simple Actor.002" to_socket="Env"/>
 	</Links>
 	<!--Generated from blender-->
 </TrainingRun>

@@ -4,8 +4,6 @@ import matplotlib.image as mpimg
 import time
 from pathlib import Path
 
-import config
-
 """
 jointType : 
 JOINT_REVOLUTE, JOINT_PRISMATIC, JOINT_SPHERICAL, JOINT_PLANAR, JOINT_FIXED
@@ -233,15 +231,14 @@ class Simulator():
 		p.resetBaseVelocity(self.robotId, self.state.base_pos_speed, self.state.base_rot_speed)
 	
 		# --- adr ---
-		if config.training["use_adr"]:
-			max_friction = 1
-			friction = np.random.random()*(max_friction-self.adr.value("min_friction")) + self.adr.value("min_friction")
-			if self.adr.is_test_param("min_friction"):
-				friction = self.adr.value("min_friction")
-			
-			for i in range(12):
-				p.changeDynamics(self.robotId, i, lateralFriction=friction)
-			p.changeDynamics(self.groundId, -1, lateralFriction=friction)
+		max_friction = 1
+		friction = np.random.random()*(max_friction-self.adr.value("min_friction")) + self.adr.value("min_friction")
+		if self.adr.is_test_param("min_friction"):
+			friction = self.adr.value("min_friction")
+		
+		for i in range(12):
+			p.changeDynamics(self.robotId, i, lateralFriction=friction)
+		p.changeDynamics(self.groundId, -1, lateralFriction=friction)
 			
 			
 		#self.state.a_pos_speed = 1 - min(max(self.curr_ep/700, 0), 1)

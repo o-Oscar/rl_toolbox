@@ -100,6 +100,16 @@ class CartPoleNode:
 		env.mode = int(self.data['mode_prop'])
 		output_dict['Env'] = env
 
+from environments import dog_env
+
+class DogEnvNode:
+	def __init__ (self, mpi_role):
+		self.mpi_role = mpi_role
+	
+	def run (self, save_path, proc_num, input_dict, output_dict):
+		env = dog_env.DogEnv()
+		output_dict['Env'] = env
+
 from classroom import PPO
 import warehouse
 import time
@@ -217,6 +227,7 @@ type_dict = {
 		'LoadCriticNode':LoadCriticNode,
 		'FreePrimitiveNode':FreePrimitiveNode,
 		'CartPoleNode':CartPoleNode,
+		'DogEnvNode':DogEnvNode,
 		'TrainPPONode':TrainPPONode,
 		}
 

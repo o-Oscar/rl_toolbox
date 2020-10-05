@@ -3,8 +3,6 @@
 from mpi4py import MPI
 import numpy as np
 
-import config
-
 rollout_comp = ["s", "a", "r", "neglog", "mask"]
 
 
@@ -31,7 +29,7 @@ def send_weights ():
 
 rollouts = {key:[] for key in rollout_comp}
 rollouts_nb = {key:0 for key in rollout_comp}
-sent_rollout_nb = config.training["rollout_nb"]
+sent_rollout_nb = 0
 dumped_rollouts = 0
 
 def store_rollout (x, key):
@@ -54,6 +52,7 @@ def send_rollout (key):
 def set_rollout_nb (x):
 	global sent_rollout_nb
 	sent_rollout_nb = x
+
 
 # adr storage system
 

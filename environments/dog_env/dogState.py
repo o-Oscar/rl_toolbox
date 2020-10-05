@@ -4,7 +4,6 @@ from pathlib import Path
 import config
 
 
-
 class DogState:
 	def __init__ (self, adr):
 		self.adr = adr

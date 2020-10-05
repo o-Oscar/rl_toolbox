@@ -3,8 +3,6 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers
 
-import config
-
 class BaseActor ():
 	def __init__ (self):
 		self.save_path = "will not work"

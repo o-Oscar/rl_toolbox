@@ -4,7 +4,8 @@ import time
 import matplotlib.pyplot as plt
 
 import config
-	
+
+
 def get_A (is_act, state_Id=-1):
 	if is_act:
 		return np.asarray([[0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],

@@ -1,1 +1,1 @@
-max_mrgsJ$min_mrgsJ$max_delay$max_a_noise$max_w_noise$min_solid_friction$max_solid_friction$min_fluid_friction$max_fluid_friction$
+joint_pos_rand_offset$joint_pos_rand_std$local_up_rand_offset$local_up_rand_std$rot_vect_rand_offset$rot_vect_rand_std$min_friction$act_rand_offset$act_rand_std$

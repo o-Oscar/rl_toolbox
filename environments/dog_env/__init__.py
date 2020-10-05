@@ -15,8 +15,6 @@ from .symetry import Symetry
 from .blindfold import Blindfold
 from .adr import Adr
 
-import config
-
 class DogEnv():
 	def __init__(self, debug=False, render=False):
 		self.symetry = Symetry()
@@ -26,6 +24,9 @@ class DogEnv():
 		self.render = render
 		
 		self.adr = Adr()
+		self.test_adr = False
+		self.adr_rollout_len = 300
+		
 		self.kin = Kinematics()
 		self.state = DogState(self.adr)
 		self.sim = Simulator(self.state, self.adr, self.debug, self.render)
@@ -43,7 +44,7 @@ class DogEnv():
 		
 		# multiple obs and act in one obs
 		self.obs_pool = []
-		self.pool_len = config.obs_transition_len
+		self.pool_len = 3 # config.obs_transition_len
 		self.obs_mean = np.concatenate([self.state.obs_mean + [0.5 for j in range(12)] for i in range(self.pool_len)])
 		self.obs_std = np.concatenate([self.state.obs_std + [1 for j in range(12)] for i in range(self.pool_len)])
 		
