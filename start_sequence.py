@@ -15,7 +15,7 @@ tensorboard --logdir=results/exp_0/tensorboard --host localhost --port 6006
 """
 
 class ProcessNode:
-	def __init__ (self, mpi_role, data):
+	def __init__ (self, mpi_role, data, mpi_rank):
 		self.input_dict = {}
 		self.output_dict = {}
 		self.input_links = []
@@ -24,6 +24,7 @@ class ProcessNode:
 		
 		self.proc = configuration.nodes.get_process(data['type'])(mpi_role)
 		self.proc.data = data
+		self.proc.mpi_rank = mpi_rank
 		
 	def run (self, save_paths, proc_num):
 		self.proc.run(save_paths, proc_num, self.input_dict, self.output_dict)
@@ -51,7 +52,7 @@ if __name__ == "__main__":
 
 		for child in root.iter('Process'):
 			attrib = child.attrib
-			proc_dict[attrib['name']] = ProcessNode(mpi_role, attrib)
+			proc_dict[attrib['name']] = ProcessNode(mpi_role, attrib, my_rank)
 
 		for child in root.iter('Link'):
 			attrib = child.attrib

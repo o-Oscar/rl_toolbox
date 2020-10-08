@@ -64,6 +64,10 @@ class DogEnv():
 		self.adr.add_param("act_rand_offset", 0, 0.003, 1000)
 		self.adr.add_param("act_rand_std", 0, 0.003, 1000)
 		
+		# --- training settings ---
+		self.train_continuous = True
+		self.train_speed = []
+		self.train_rot_speed = []
 		
 	
 	def step(self, action):
@@ -85,11 +89,18 @@ class DogEnv():
 			for reward, s in zip(all_rew, self.to_plot):
 				s.append(reward)
 		
-		self.adr.step(rew, done)
+		if self.test_adr:
+			adr_success = not done
+			self.adr.step(adr_success, not adr_success)
+		else:
+			self.adr.step(False, False)
+			
 		return self.calc_obs(), [rew], [done]
 		
 	def reset(self):
 	
+		self.adr.reset()
+		
 		des_v = 0#np.sqrt(np.sum(np.square(self.state.target_speed))) * np.random.random()
 		des_clear = 0#0.05 * np.random.random()
 		frame = int(np.random.random()*self.reset_motion.shape[0])
@@ -103,7 +114,7 @@ class DogEnv():
 			self.sim.step(act, legs_angle)
 			self.obs_pool += self.state.calc_obs() + [act]
 		
-		
+		"""
 		if 1: # training all main moves
 			r = np.random.random()
 			if r > 1/3:
@@ -128,9 +139,23 @@ class DogEnv():
 			#targ_rot = 0
 			targ_rot = -1
 			self.state.target_rot_speed = targ_rot
-			
+		"""
+		# --- setting the target speed and rot ---
 		
-		self.adr.reset()
+		if self.train_continuous:
+			if np.random.random() < 0.1:
+				targ_speed = 0
+				targ_rot = 0
+			else:
+				targ_speed = 0.1 + np.random.random()
+				targ_rot = (2*np.random.random()+0.1) * np.random.choice([-1, 1])
+		else:
+			targ_speed = np.random.choice(self.train_speed)
+			targ_rot = np.random.choice(self.train_rot_speed)
+		
+		self.state.target_speed = np.asarray([1, 0]) * targ_speed
+		self.state.target_rot_speed = targ_rot
+		
 		
 		self.act_offset = (np.random.random(size=(12,))*2-1)*self.adr.value("act_rand_offset")
 		

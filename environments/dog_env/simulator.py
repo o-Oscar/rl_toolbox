@@ -37,6 +37,9 @@ class Simulator():
 		self.frame_per_render = 4
 	
 		# --- Connecting to the right server ---
+		if p.isConnected():
+			p.disconnect()
+		
 		if self.debug:
 			p.connect(p.GUI)
 			p.resetDebugVisualizerCamera (1, 0, 0, [0, 0, 0.3])

@@ -10,12 +10,12 @@ rollout_comp = ["s", "a", "r", "neglog", "mask"]
 
 # network weights storage system
 
-_has_weights = False
+_has_weights = True
+_weights = ""
 
 def store_weights (weights):
 	global _has_weights
 	global _weights
-	
 	_weights = weights
 	_has_weights = True
 
@@ -69,7 +69,7 @@ def send_adr ():
 
 # current node storage system
 
-cur_node = -1
+cur_node = 0
 
 def store_node (new_values):
 	global cur_node
@@ -159,8 +159,8 @@ def work_loop ():
 		
 		for x in not_processed:
 			request_stack.append(x)
-			rank, req = x
 			"""
+			rank, req = x
 			print("wh: msg {} not processed".format(x), flush=True)
 			print("wh: feasable = {}".format(str([sendable_dict[req]() for req in request])))
 			print("wh: rollout_nb =", rollouts_nb)

@@ -108,6 +108,17 @@ class DogEnvNode:
 	
 	def run (self, save_path, proc_num, input_dict, output_dict):
 		env = dog_env.DogEnv()
+		env.train_continuous = self.data['continuous_prop'] == "1"
+		if not env.train_continuous:
+			env.train_speed = []
+			for v, name in [(0, "no_walk_prop"), (0.5, "slow_walk_prop"), (1, "fast_walk_prop")]:
+				if self.data[name] == "1":
+					env.train_speed.append(v)
+			env.train_rot_speed = []
+			for v, name in [(0, "no_turn_prop"), (0.5, "slow_turn_prop"), (-0.5, "slow_turn_prop"), (1, "fast_turn_prop"), (-1, "fast_turn_prop")]:
+				if self.data[name] == "1":
+					env.train_rot_speed.append(v)
+			
 		output_dict['Env'] = env
 
 from classroom import PPO
@@ -139,6 +150,7 @@ class TrainPPONode:
 			
 			start_time = time.time()
 			desired_rollout_nb = int(self.data['rollout_nb_prop'])
+			
 			for n in range(int(self.data['epoch_nb_prop'])):
 				# send the network weights
 				# and get the latest rollouts
@@ -179,13 +191,14 @@ class TrainPPONode:
 			
 			while proc_num > data["node"]:
 				time.sleep(0.3)
-				print("sleeping", flush=True)
+				data = warehouse.send(msg)
 			
 			while proc_num == data["node"]:
 				test_adr = USE_ADR and np.random.random() < float(self.data['adr_prob_prop'])
 				
 				env.test_adr = test_adr
-					
+				
+				#print(data["weights"][0], flush=True)
 				trainer.set_weights (data["weights"])
 				
 				if test_adr:

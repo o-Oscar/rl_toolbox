@@ -50,9 +50,8 @@ class Adr:
 		if self.tested_param != "":
 			self.all_values[self.tested_param] = self.updated_tested_value()
 		
-		self.sum_rew = 0
-		self.n_rew = 0
-		self.premature_end = False
+		self.success = False
+		self.failure = False
 		
 		if np.random.random() < 1:
 			self.set_test_param ()

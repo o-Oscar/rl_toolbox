@@ -1,20 +1,49 @@
-import tensorflow as tf
-from tensorflow.keras import layers
+
+import pybullet as p
+
+from environments.dog_env import DogEnv
+from models.actor import SimpleActor, MixtureOfExpert
+
+from classroom import PPO
+
 import numpy as np
 
-input = layers.Input(shape=(None, 3))
-output = input*3
+env = DogEnv(debug=True, render=False)
+		
+env = DogEnv(debug=True, render=False)
 
-primitive = tf.keras.Model(input, output, name="actor")
+	
+def get_weights ():
+	path = "results\\retrain\\models\\expert\\{}"
+			
+	primitives = [SimpleActor(env) for i in range(2)]
+	actor = MixtureOfExpert(env, primitives, debug=True)
 
-m_input = layers.Input(shape=(None, 3))
-mean = m_input * 2
+	actor.load(path)
+	return actor.get_weights()
 
-mean = primitive(m_input)
+weights = get_weights() 
 
-m_output = mean*5
 
-model = tf.keras.Model(m_input, m_output, name="actor")
-help(model)
-model.summary()
-print(model(np.ones((4,3), dtype=np.float32)))
+			
+primitives = [SimpleActor(env) for i in range(2)]
+actor = MixtureOfExpert(env, primitives, debug=True)
+
+
+trainer = PPO(env, actor, init_log_std=-3)
+
+
+actor.set_weights(weights)
+
+all_s, all_a, all_r, all_neglog, all_mask = trainer.get_rollout(100)
+x = np.mean(all_r)
+
+print(x)
+all_s, all_a, all_r, all_neglog, all_mask = trainer.get_rollout(100)
+x = np.mean(all_r)
+
+print(x)
+all_s, all_a, all_r, all_neglog, all_mask = trainer.get_rollout(100)
+x = np.mean(all_r)
+
+print(x)

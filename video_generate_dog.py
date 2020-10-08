@@ -8,31 +8,34 @@ import time
 import pybullet as p
 
 from environments.dog_env import DogEnv
-from models.actor import Actor
+from models.actor import SimpleActor, MixtureOfExpert
 
 
 if __name__ == '__main__':
 	tf.config.threading.set_inter_op_parallelism_threads(1)
 	print("inter_op_parallelism_threads : {}".format(tf.config.threading.get_inter_op_parallelism_threads()))
 	
-	render = False
 	debug = True
+	render = False
+	load_trained = True
+	actor_type = "mix"
 	
 	env = DogEnv(debug=debug, render=render)
 
-	path = "results\\exp_0\\models\\{}_{}"
-	path = "results\\default\\models\\{}_{}"
-	#path = "results\\showcase_simple\\models\\{}_{}"
-	#path = "results\\showcase_moe\\models\\{}_{}"
+	path = "results\\exp_0\\models\\expert\\{}"
 	
-	actor = Actor(env)
-	actor.load_primitive(path)
-	actor.load_influence(path)
+	if actor_type=="mix":
+		primitives = [SimpleActor(env) for i in range(2)]
+		actor = MixtureOfExpert(env, primitives, debug=True)
+	elif actor_type == "simple":
+		actor = SimpleActor(env)
 	
+	if load_trained:
+		actor.load(path)
+		
+	env.test_adr = False
 	obs = env.reset()
 	init_state = actor.get_init_state(env.num_envs)
-	
-	inf = np.asarray([0.12987278401851654, 0.13825936615467072, 0.09369949251413345, 0.08370998501777649, 0.24716375768184662, 0.049952492117881775, 0.17190951108932495, 0.08543267101049423])
 	
 	all_rew = []
 	all_done = []
@@ -40,6 +43,7 @@ if __name__ == '__main__':
 	all_obs = []
 	all_influence = []
 	all_act = []
+	all_inf = []
 	
 	"""
 	env.reset(1)
@@ -57,7 +61,7 @@ if __name__ == '__main__':
 	
 	print(1/0)
 	"""
-	for i in range(30*15):
+	for i in range(30*5):
 		events = p.getKeyboardEvents()
 		speed = 1
 		rot = 0
@@ -73,27 +77,29 @@ if __name__ == '__main__':
 		if speed == 0:
 			rot = 0
 		"""
-		"""
-		speed = 0
-		rot = 0
-		"""
 		
+		#speed = 1
+		#rot = -1
+		
+		"""
 		task = [-1, -1,-1, -1, 0, 0, 1, 1, 1, 1, 0, 0]
 		rot = task[(i//30)%len(task)]
-		
+		"""
 		#env.set_cmd(2, rot)
 		
-		env.state.target_speed =  np.asarray([1, 0])*speed/2
+		env.state.target_speed =  np.asarray([1, 0])*speed
 		env.state.target_rot_speed = rot
 		
 		obs = np.expand_dims(np.asarray(obs, dtype=np.float32), axis=1)
 		start = time.time()
 		#act, init_state = actor.model((obs, init_state))
 		act, init_state = actor.model((obs, init_state))
+		if actor_type=="mix":
+			all_inf.append(actor.inf_model((obs, init_state))[0].numpy())
 		dur = time.time()-start
 		act = act.numpy()
 		all_act.append(act)
-		act = act + np.random.normal(size=12).reshape(act.shape) * np.exp(-3)
+		act = act #+ np.random.normal(size=12).reshape(act.shape) * np.exp(-3)
 		#act = np.asarray([0.0, 1.0408382989215212, -1.968988857605835]*4)
 		#act = np.asarray([0.5, 0.5, 0.3]* 4)
 		obs, rew, done = env.step(act)
@@ -115,6 +121,10 @@ if __name__ == '__main__':
 		
 	plt.legend()
 	
+	if actor_type=="mix":
+		plt.plot(np.squeeze(all_inf))
+		plt.show()
+		
 	
 	print("rew :", np.mean(all_rew))
 	print("speed :", np.mean(env.sim.to_plot[8+24]))
