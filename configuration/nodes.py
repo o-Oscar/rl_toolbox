@@ -121,7 +121,7 @@ class DogEnvNode:
 			
 		output_dict['Env'] = env
 
-from classroom import PPO
+from ppo import PPO
 import warehouse
 import time
 import numpy as np
@@ -231,6 +231,110 @@ class TrainPPONode:
 		output_dict['Trained actor'] = trainer.actor
 		output_dict['Critic'] = trainer.critic
 
+import distillation
+
+class TrainDistillationNode:
+	def __init__ (self, mpi_role):
+		self.mpi_role = mpi_role
+	
+	def run (self, save_path, proc_num, input_dict, output_dict):
+		
+		if "Env" in input_dict:
+			env = input_dict['Env'][0]
+			critic = Critic (env)
+			print("training critic")
+		else:
+			critic = None
+		
+		primitive_nb = int(self.data['primitive_nb_prop'])
+		envs = []
+		primitives = []
+		for i in range(primitive_nb):
+			envs.append(input_dict['Env_'+str(i)][0])
+			primitives.append(input_dict['Primitive_'+str(i)][0])
+		expert = input_dict['Expert'][0]
+		
+		if self.mpi_role == 'main':
+			tensorboard_path = os.path.join(save_path['tensorboard'], self.data['tensorboard_name_prop'])
+			os.makedirs(tensorboard_path)
+			
+			trainer = distillation.Trainer(expert, critic, tensorboard_path)
+			trainer.model_save_interval = int(self.data['model_save_interval_prop'])
+			train_step_nb = int(self.data['train_step_nb_prop'])
+			
+			start_time = time.time()
+			desired_rollout_nb = int(self.data['rollout_nb_prop'])
+			
+			prim_weights = [prim.get_weights() for prim in primitives]
+			
+			for n in range(int(self.data['epoch_nb_prop'])):
+				# send the network weights
+				# and get the latest rollouts
+				msg = {"node":proc_num, "weights" : trainer.get_weights(), "primitive" : prim_weights, "rollout_nb":desired_rollout_nb, "request" : ["s", "a", "r", "mask", "dumped"]}
+				data = warehouse.send(msg)
+				all_s = data["s"]
+				all_a = data["a"]
+				all_r = data["r"]
+				all_masks = data["mask"]
+				dumped_rollout_nb = data["dumped"]
+				
+				# update the network weights
+				trainer.train_networks(n, all_s, all_a, all_r, all_masks, train_step_nb)
+				
+				#debug
+				n_rollouts = all_s.shape[0]
+				rollout_len = all_s.shape[1]
+				print("Epoch {} :".format(n), flush=True)
+				print("Loaded {} rollouts for training while dumping {}.".format(n_rollouts, dumped_rollout_nb), flush=True)
+				dt = time.time() - start_time
+				start_time = time.time()
+				if dt > 0:
+					print("fps : {}".format(n_rollouts*rollout_len/dt), flush=True)
+				print("mean_rew : {}".format(np.sum(all_r * all_masks)/np.sum(all_masks)), flush=True)
+				
+			output_dict['Expert'] = trainer.expert
+			output_dict['Critic'] = trainer.critic
+			
+		elif self.mpi_role == 'worker':
+			rollout_len = int(self.data['rollout_len_prop'])
+			#data = warehouse.send({"request":["node"]}) ; self.data['name'] == data['node']"
+			msg = {"request" : ["weights", "primitive", "node"]}
+			data = warehouse.send(msg)
+			
+			while proc_num > data["node"]:
+				time.sleep(0.3)
+				data = warehouse.send(msg)
+				
+			for prim, prim_weight in zip(primitives, data["primitive"]):
+				prim.set_weights(prim_weight)
+			
+			while proc_num == data["node"]:
+				#print(data["weights"][0], flush=True)
+				expert.set_weights (data["weights"])
+				
+				id = int(np.random.random()*len(envs))
+				cur_env = envs[id]
+				cur_prim = primitives[id]
+				
+				# simulate rollout
+				all_s, all_a, all_r, all_mask = distillation.get_rollout(expert, cur_env, cur_prim, rollout_len)
+				
+				# send rollout back to warehouse
+				# and get network weights and update actor
+				msg = {"node":proc_num, 
+						"s" : all_s,
+						"a" : all_a,
+						"r" : all_r,
+						"mask" : all_mask,
+						"request" : ["weights", "node"]}
+					
+				data = warehouse.send(msg)
+				
+				
+			output_dict['Expert'] = expert
+			output_dict['Critic'] = critic
+			
+		
 
 
 type_dict = {
@@ -242,6 +346,7 @@ type_dict = {
 		'CartPoleNode':CartPoleNode,
 		'DogEnvNode':DogEnvNode,
 		'TrainPPONode':TrainPPONode,
+		'TrainDistillationNode':TrainDistillationNode,
 		}
 
 def get_process (type):

@@ -25,6 +25,23 @@ def weights_sendable ():
 def send_weights ():
 	return _weights
 
+# primitive weights storage system
+
+_has_primitive = True
+_primitive = []
+
+def store_primitive (primitive):
+	global _has_primitive
+	global _primitive
+	_primitive = primitive
+	_has_primitive = True
+
+def primitive_sendable ():
+	return _has_primitive
+
+def send_primitive ():
+	return _primitive
+
 # rollout storage system
 
 rollouts = {key:[] for key in rollout_comp}
@@ -94,15 +111,15 @@ WORK_DONE = 1
 # global var
 is_work_done = False
 
-store_dict = {"weights" : store_weights, "rollout_nb" : set_rollout_nb, "adr" : store_adr, "node" : store_node}
+store_dict = {"weights" : store_weights, "primitive" : store_primitive, "rollout_nb" : set_rollout_nb, "adr" : store_adr, "node" : store_node}
 for key in rollout_comp:
 	store_dict[key] = lambda x, key=key : store_rollout(x, key)
 
-sendable_dict = {"weights" : weights_sendable, "dumped" : (lambda : True), "adr" : adr_sendable, "node" : node_sendable}
+sendable_dict = {"weights" : weights_sendable, "primitive" : primitive_sendable, "dumped" : (lambda : True), "adr" : adr_sendable, "node" : node_sendable}
 for key in rollout_comp:
 	sendable_dict[key] = lambda key=key : rollout_sendable(key)
 
-send_dict = {"weights" : send_weights, "dumped" : (lambda : dumped_rollouts), "adr" : send_adr, "node" : send_node}
+send_dict = {"weights" : send_weights, "primitive" : send_primitive, "dumped" : (lambda : dumped_rollouts), "adr" : send_adr, "node" : send_node}
 for key in rollout_comp:
 	send_dict[key] = lambda key=key : send_rollout(key)
 

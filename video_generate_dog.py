@@ -18,11 +18,12 @@ if __name__ == '__main__':
 	debug = True
 	render = False
 	load_trained = True
-	actor_type = "mix"
+	actor_type = "simple"
 	
 	env = DogEnv(debug=debug, render=render)
 
-	path = "results\\exp_0\\models\\expert\\{}"
+
+	path = "results\\exp_1\\models\\expert\\{}"
 	
 	if actor_type=="mix":
 		primitives = [SimpleActor(env) for i in range(2)]
@@ -38,6 +39,7 @@ if __name__ == '__main__':
 	init_state = actor.get_init_state(env.num_envs)
 	
 	all_rew = []
+	all_rew2 = []
 	all_done = []
 	all_stuff = [[] for i in range(100)]
 	all_obs = []
@@ -61,7 +63,7 @@ if __name__ == '__main__':
 	
 	print(1/0)
 	"""
-	for i in range(30*5):
+	for i in range(30*15):
 		events = p.getKeyboardEvents()
 		speed = 1
 		rot = 0
@@ -90,6 +92,9 @@ if __name__ == '__main__':
 		env.state.target_speed =  np.asarray([1, 0])*speed
 		env.state.target_rot_speed = rot
 		
+		
+		
+		
 		obs = np.expand_dims(np.asarray(obs, dtype=np.float32), axis=1)
 		start = time.time()
 		#act, init_state = actor.model((obs, init_state))
@@ -112,7 +117,7 @@ if __name__ == '__main__':
 	for i in range(4):
 		plt.plot(all_act[:,0+3*i], all_act[:,2+3*i], 'o')
 	#plt.plot(all_act[:,1])
-	"""
+	
 	for i in range(4):
 		l = [np.sum(np.square(v)[:2]) if d < 0.02 else 0 for d, v in zip(env.sim.to_plot[i+24], env.sim.to_plot[i+24+8+2])]
 		#plt.plot(l, label=str(i))
@@ -124,18 +129,20 @@ if __name__ == '__main__':
 	if actor_type=="mix":
 		plt.plot(np.squeeze(all_inf))
 		plt.show()
-		
+		"""
 	
 	print("rew :", np.mean(all_rew))
-	print("speed :", np.mean(env.sim.to_plot[8+24]))
+	#print("speed :", np.mean(env.sim.to_plot[8+24]))
+	print("rew :", np.mean(all_rew2))
+	#print("speed :", np.mean(env2.sim.to_plot[8+24]))
 	"""
 	for i in range(7):
 		plt.plot(env.to_plot[i])
 	plt.plot(env.sim.to_plot[8+24])
 	
-	"""
-	plt.show()
 	
+	plt.show()
+	"""
 	if len(env.sim.raw_frames) > 0:
 		with open("results/video/raw.out", "wb") as f:
 			f.write(np.stack(env.sim.raw_frames).tostring())
