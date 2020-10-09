@@ -1,7 +1,6 @@
 import numpy as np
 import time
 import matplotlib.pyplot as plt
-import pybullet as p
 
 
 class RewardFunc ():

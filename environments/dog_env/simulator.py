@@ -37,26 +37,20 @@ class Simulator():
 		self.frame_per_render = 4
 	
 		# --- Connecting to the right server ---
-		if p.isConnected():
-			p.disconnect()
-		
 		if self.debug:
-			p.connect(p.GUI)
+			self.pcId = p.connect(p.GUI)
 			p.resetDebugVisualizerCamera (1, 0, 0, [0, 0, 0.3])
 			self.to_plot = [[] for i in range(100)]
 		else:
-			p.connect(p.DIRECT)
+			self.pcId = p.connect(p.DIRECT)
 			
 		# --- Loading the meshes ---
 		urdf_path = str(Path(__file__).parent) + "/urdf"
-		self.groundId = p.loadURDF(urdf_path + "/plane_001/plane.urdf")
-		self.robotId = p.loadURDF(urdf_path + "/robot_001/robot.urdf", [0,0,1])
+		self.groundId = p.loadURDF(urdf_path + "/plane_001/plane.urdf", physicsClientId=self.pcId)
+		self.robotId = p.loadURDF(urdf_path + "/robot_001/robot.urdf", [0,0,1], physicsClientId=self.pcId)
 		
-		for i in range(12):
-			p.changeDynamics(self.robotId, i, lateralFriction=100)
-		
-		p.setGravity(0, 0, -9.81)
-		p.setPhysicsEngineParameter(fixedTimeStep=self.timeStep)
+		p.setGravity(0, 0, -9.81, physicsClientId=self.pcId)
+		p.setPhysicsEngineParameter(fixedTimeStep=self.timeStep, physicsClientId=self.pcId)
 		
 		# --- setting up the adr ---
 		self.adr.add_param("min_friction", 0.5, -0.02, 0.1)
@@ -64,8 +58,8 @@ class Simulator():
 		
 		friction = 0.5
 		for i in range(12):
-			p.changeDynamics(self.robotId, i, lateralFriction=friction)
-		p.changeDynamics(self.groundId, -1, lateralFriction=friction)
+			p.changeDynamics(self.robotId, i, lateralFriction=friction, physicsClientId=self.pcId)
+		p.changeDynamics(self.groundId, -1, lateralFriction=friction, physicsClientId=self.pcId)
 		
 	def set_epoch (self, ep):
 		self.curr_ep = ep
@@ -74,15 +68,15 @@ class Simulator():
 	
 		for t in range(self.frameSkip):
 			self.update_joint_lowpass (joint_target)
-			self.set_help_force ()
-			p.stepSimulation ()
+			#self.set_help_force ()
+			p.stepSimulation (physicsClientId=self.pcId)
 		
 			if self.render:
 				self.render_frame()
 			
 			if self.debug:
-				base_pos, base_rot = p.getBasePositionAndOrientation(self.robotId)
-				p.resetDebugVisualizerCamera (1, 30, -15, base_pos)
+				base_pos, base_rot = p.getBasePositionAndOrientation(self.robotId, physicsClientId=self.pcId)
+				p.resetDebugVisualizerCamera (1, 30, -15, base_pos, physicsClientId=self.pcId)
 				#p.resetDebugVisualizerCamera (1, 0, -15, base_pos)
 		
 		self.update_state(action)
@@ -98,7 +92,7 @@ class Simulator():
 				self.to_plot[i+24+8+2].append(self.state.foot_vel[i])
 			self.to_plot[8+24].append(self.state.mean_planar_speed[0])
 			self.to_plot[9+24].append(self.state.mean_planar_speed[1])
-				
+	"""
 	def set_help_force (self):
 		z = self.state.base_pos[2]
 		dx = self.state.base_pos_speed[0]
@@ -112,55 +106,41 @@ class Simulator():
 		force = [-(dx-self.state.target_speed[0])*kdz, -(dy-self.state.target_speed[1])*kdz, -(z-h_targ)*kpz-dz*kdz]
 		#force = [0, 0, 60*(1-self.curr_ep/1000)+20]
 		
-		"""
-		axis_rot, angle = p.getAxisAngleFromQuaternion(self.state.base_rot)
-		axis_rot = np.asarray(axis_rot)
-		if angle > np.pi:
-			angle -= np.pi
-		axis_rot *= angle
-		axis_vel = np.asarray(self.state.base_rot_speed)
-		
-		kda = 1
-		kpa = 0#kda*kda*(100/(20*20))
-		torque = -kpa*axis_rot - kda*axis_vel
-		torque = torque.tolist()
-		"""
-		
 		p.applyExternalForce (self.robotId, -1, force, self.state.base_pos, p.WORLD_FRAME)
 		#p.applyExternalTorque (objectUniqueId=self.robotId, linkIndex=-1, torqueObj=torque, flags=p.WORLD_FRAME)
-	
+	"""
 	def update_joint_lowpass (self, joint_target):
 		for i in range(12):
 			self.state.joint_target[i] = self.state.joint_target[i]*(1-self.lowpass_joint_alpha) + joint_target[i]*self.lowpass_joint_alpha
-			p.setJointMotorControl2(self.robotId, i, p.POSITION_CONTROL, targetPosition=self.state.joint_target[i], force=10, maxVelocity=20)
+			p.setJointMotorControl2(self.robotId, i, p.POSITION_CONTROL, targetPosition=self.state.joint_target[i], force=10, maxVelocity=20, physicsClientId=self.pcId)
 	
 	def update_state (self, action):
 		# experimental
-		new_pos_speed, new_rot_speed = p.getBaseVelocity(self.robotId)
+		new_pos_speed, new_rot_speed = p.getBaseVelocity(self.robotId, physicsClientId=self.pcId)
 		new_pos_speed = np.asarray(new_pos_speed)
 		new_rot_speed = np.asarray(new_rot_speed)
 		self.state.base_pos_acc = (new_pos_speed-self.state.base_pos_speed)/(self.timeStep*self.frameSkip)
 		self.state.base_rot_acc = (new_rot_speed-self.state.base_rot_speed)/(self.timeStep*self.frameSkip)
 		
 		# --- base pos and rot ---
-		self.state.base_pos, self.state.base_rot = p.getBasePositionAndOrientation(self.robotId)
+		self.state.base_pos, self.state.base_rot = p.getBasePositionAndOrientation(self.robotId, physicsClientId=self.pcId)
 		self.state.base_pos = list(self.state.base_pos)
 		self.state.base_rot = list(self.state.base_rot)
 		
 		# --- base speed ---
-		self.state.base_pos_speed, self.state.base_rot_speed = p.getBaseVelocity(self.robotId)
+		self.state.base_pos_speed, self.state.base_rot_speed = p.getBaseVelocity(self.robotId, physicsClientId=self.pcId)
 		self.state.base_pos_speed = list(self.state.base_pos_speed)
 		self.state.base_rot_speed = list(self.state.base_rot_speed)
 		
 		# --- joint pos and speed ---
-		for i in range(p.getNumJoints(self.robotId)):
-			data = p.getJointState(self.robotId, i)
+		for i in range(p.getNumJoints(self.robotId, physicsClientId=self.pcId)):
+			data = p.getJointState(self.robotId, i, physicsClientId=self.pcId)
 			self.state.joint_rot[i] = data[0]
 			self.state.joint_rot_speed[i] = data[1]
 			self.state.joint_torque[i] = data[3]
 		
 		# --- body clearances ---
-		all_contact_point = p.getClosestPoints(self.robotId, self.groundId, 100, linkIndexA=-1)
+		all_contact_point = p.getClosestPoints(self.robotId, self.groundId, 100, linkIndexA=-1, physicsClientId=self.pcId)
 		if len(all_contact_point) == 0:
 			self.state.base_clearance = 0
 		else:
@@ -170,14 +150,14 @@ class Simulator():
 		# --- foot clearances ---
 		all_foot_id = [2, 5, 8, 11]#[1, 2, 4, 5, 7, 8, 10, 11]
 		for i, link_index in enumerate(all_foot_id):
-			all_contact_point = p.getClosestPoints(self.robotId, self.groundId, 100, linkIndexA=link_index)
+			all_contact_point = p.getClosestPoints(self.robotId, self.groundId, 100, linkIndexA=link_index, physicsClientId=self.pcId)
 			if len(all_contact_point) == 0:
 				self.state.foot_clearance[i] = 0
 			else:
 				_, _, _, _, _, point_pos, _, _, dist, _, _, _, _, _ = all_contact_point[0]
 				self.state.foot_clearance[i] = dist
 				
-				linkWorldPosition, linkWorldOrientation, _, _, _, _, worldLinkLinearVelocity, worldLinkAngularVelocity = p.getLinkState(self.robotId, link_index, computeLinkVelocity=True, computeForwardKinematics=True)
+				linkWorldPosition, linkWorldOrientation, _, _, _, _, worldLinkLinearVelocity, worldLinkAngularVelocity = p.getLinkState(self.robotId, link_index, computeLinkVelocity=True, computeForwardKinematics=True, physicsClientId=self.pcId)
 				rel_pos = np.asarray(point_pos) - np.asarray(linkWorldPosition)
 				world_vel = np.asarray(worldLinkLinearVelocity) + self.vect_prod(worldLinkAngularVelocity, rel_pos)
 				self.state.foot_vel[i] = world_vel
@@ -218,20 +198,20 @@ class Simulator():
 	def reset (self, des_v, des_clear, legs_angle):
 		h0 = 5
 		self.state.reset()
-		p.resetBasePositionAndOrientation(self.robotId, [0, 0, h0], self.state.base_rot)
-		p.resetBaseVelocity(self.robotId, self.state.base_pos_speed, self.state.base_rot_speed)
+		p.resetBasePositionAndOrientation(self.robotId, [0, 0, h0], self.state.base_rot, physicsClientId=self.pcId)
+		p.resetBaseVelocity(self.robotId, self.state.base_pos_speed, self.state.base_rot_speed, physicsClientId=self.pcId)
 		for i in range(12):
 			self.state.joint_rot[i] = legs_angle[i]
 			self.state.joint_target[i] = legs_angle[i]
 			self.state.mean_joint_rot[i] = legs_angle[i]
-			p.resetJointState(self.robotId, i, legs_angle[i], 0)
+			p.resetJointState(self.robotId, i, legs_angle[i], 0, physicsClientId=self.pcId)
 		
 		act_clear = self.get_clearance ()
 		h = des_clear-act_clear+h0
 		self.state.base_pos = [0, 0, h]
 		self.state.base_pos_speed = [des_v, 0, 0]
-		p.resetBasePositionAndOrientation(self.robotId, self.state.base_pos, self.state.base_rot)
-		p.resetBaseVelocity(self.robotId, self.state.base_pos_speed, self.state.base_rot_speed)
+		p.resetBasePositionAndOrientation(self.robotId, self.state.base_pos, self.state.base_rot, physicsClientId=self.pcId)
+		p.resetBaseVelocity(self.robotId, self.state.base_pos_speed, self.state.base_rot_speed, physicsClientId=self.pcId)
 	
 		# --- adr ---
 		max_friction = 1
@@ -240,8 +220,8 @@ class Simulator():
 			friction = self.adr.value("min_friction")
 		
 		for i in range(12):
-			p.changeDynamics(self.robotId, i, lateralFriction=friction)
-		p.changeDynamics(self.groundId, -1, lateralFriction=friction)
+			p.changeDynamics(self.robotId, i, lateralFriction=friction, physicsClientId=self.pcId)
+		p.changeDynamics(self.groundId, -1, lateralFriction=friction, physicsClientId=self.pcId)
 			
 			
 		#self.state.a_pos_speed = 1 - min(max(self.curr_ep/700, 0), 1)
@@ -250,7 +230,7 @@ class Simulator():
 		to_return = 100
 		all_foot_id = [1, 2, 4, 5, 7, 8, 10, 11]
 		for i, link_index in enumerate(all_foot_id):
-			all_contact_point = p.getClosestPoints(self.robotId, self.groundId, 100, linkIndexA=link_index)
+			all_contact_point = p.getClosestPoints(self.robotId, self.groundId, 100, linkIndexA=link_index, physicsClientId=self.pcId)
 			if len(all_contact_point) > 0:
 				_, _, _, _, _, point_pos, _, _, dist, _, _, _, _, _ = all_contact_point[0]
 				to_return = min(to_return, dist)
@@ -268,7 +248,7 @@ class Simulator():
 		if self.frame%self.frame_per_render != 0:
 			return
 			
-		cameraTargetPosition = list(p.getBasePositionAndOrientation(self.robotId)[0])
+		cameraTargetPosition = list(p.getBasePositionAndOrientation(self.robotId, physicsClientId=self.pcId)[0])
 		
 		if self.first_render:
 			self.first_render = False
@@ -278,7 +258,7 @@ class Simulator():
 		
 		self.cam_alpha += np.pi*2/(30*10)
 		
-		base_pos = p.getBasePositionAndOrientation(self.robotId)[0]
+		base_pos = p.getBasePositionAndOrientation(self.robotId, physicsClientId=self.pcId)[0]
 		cameraEyePosition = [base_pos[0]+self.cam_r*np.sin(self.cam_alpha), base_pos[1]+self.cam_r*np.cos(self.cam_alpha), 0.7]
 		
 		
@@ -287,9 +267,9 @@ class Simulator():
 		width = 960
 		height = 640
 		
-		viewMatrix = p.computeViewMatrix(cameraEyePosition, cameraTargetPosition, cameraUpVector)
-		projectionMatrix = p.computeProjectionMatrixFOV(fov=40.0, aspect=width/height, nearVal=0.1, farVal=10)
+		viewMatrix = p.computeViewMatrix(cameraEyePosition, cameraTargetPosition, cameraUpVecto, physicsClientId=self.pcIdr)
+		projectionMatrix = p.computeProjectionMatrixFOV(fov=40.0, aspect=width/height, nearVal=0.1, farVal=10, physicsClientId=self.pcId)
 		
-		width, height, rgbImg, depthImg, segImg = p.getCameraImage(width=width,	 height=height, viewMatrix=viewMatrix, projectionMatrix=projectionMatrix)
+		width, height, rgbImg, depthImg, segImg = p.getCameraImage(width=width,	 height=height, viewMatrix=viewMatrix, projectionMatrix=projectionMatrix, physicsClientId=self.pcId)
 		self.raw_frames.append(rgbImg.reshape((width,height,-1))[:,:,:3])
 		

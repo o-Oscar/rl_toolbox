@@ -2,27 +2,33 @@
 <TrainingRun>
 	<Processes>
 		<Process continuous_prop="0" fast_turn_prop="1" fast_walk_prop="1" name="Dog Env.001" no_turn_prop="0" no_walk_prop="0" slow_turn_prop="0" slow_walk_prop="0" type="DogEnvNode"/>
-		<Process adr_prob_prop="0.0" epoch_nb_prop="300" log_std_prop="-3.0" model_save_interval_prop="10" name="Train (PPO)" rollout_len_prop="100" rollout_nb_prop="10" tensorboard_name_prop="expert" train_step_nb_prop="12" type="TrainPPONode"/>
 		<Process continuous_prop="0" fast_turn_prop="0" fast_walk_prop="1" name="Dog Env" no_turn_prop="1" no_walk_prop="0" slow_turn_prop="0" slow_walk_prop="0" type="DogEnvNode"/>
 		<Process name="Simple Actor.002" save_name_prop="forward" type="SimpleActorNode"/>
 		<Process name="Simple Actor.003" save_name_prop="turn" type="SimpleActorNode"/>
-		<Process continuous_prop="0" fast_turn_prop="1" fast_walk_prop="1" name="Dog Env.002" no_turn_prop="1" no_walk_prop="0" slow_turn_prop="0" slow_walk_prop="0" type="DogEnvNode"/>
-		<Process model_path_prop="results/source/models/forward" name="Load Actor" type="LoadActorNode"/>
 		<Process model_path_prop="results/source/models/turn" name="Load Actor.001" type="LoadActorNode"/>
-		<Process name="Mix Actor" save_name_prop="expert" type="MixActorNode"/>
-		<Process free_prop="0" name="Free Primitive" type="FreePrimitiveNode"/>
+		<Process name="Mix Actor.001" save_name_prop="expert" type="MixActorNode"/>
+		<Process free_prop="0" name="Free Primitive.001" type="FreePrimitiveNode"/>
+		<Process adr_prob_prop="0.0" epoch_nb_prop="300" log_std_prop="-3.0" model_save_interval_prop="10" name="Train (PPO).003" rollout_len_prop="100" rollout_nb_prop="10" tensorboard_name_prop="free_expert" train_step_nb_prop="12" type="TrainPPONode"/>
+		<Process free_prop="1" name="Free Primitive.002" type="FreePrimitiveNode"/>
+		<Process adr_prob_prop="0.0" epoch_nb_prop="50" log_std_prop="-3.0" model_save_interval_prop="10" name="Train (PPO).001" rollout_len_prop="100" rollout_nb_prop="10" tensorboard_name_prop="locked_expert" train_step_nb_prop="12" type="TrainPPONode"/>
+		<Process model_path_prop="results/source/models/forward" name="Load Actor" type="LoadActorNode"/>
+		<Process continuous_prop="0" fast_turn_prop="1" fast_walk_prop="1" name="Dog Env.002" no_turn_prop="1" no_walk_prop="0" slow_turn_prop="0" slow_walk_prop="0" type="DogEnvNode"/>
 	</Processes>
 	<Links>
 		<Link from_node="Dog Env" from_socket="Env" to_node="Simple Actor.002" to_socket="Env"/>
 		<Link from_node="Dog Env.001" from_socket="Env" to_node="Simple Actor.003" to_socket="Env"/>
-		<Link from_node="Dog Env.002" from_socket="Env" to_node="Mix Actor" to_socket="Env"/>
-		<Link from_node="Mix Actor" from_socket="Actor" to_node="Free Primitive" to_socket="Actor"/>
-		<Link from_node="Dog Env.002" from_socket="Env" to_node="Train (PPO)" to_socket="Environment"/>
 		<Link from_node="Simple Actor.002" from_socket="Actor" to_node="Load Actor" to_socket="Actor"/>
-		<Link from_node="Load Actor" from_socket="Actor" to_node="Mix Actor" to_socket="Primitive"/>
 		<Link from_node="Simple Actor.003" from_socket="Actor" to_node="Load Actor.001" to_socket="Actor"/>
-		<Link from_node="Load Actor.001" from_socket="Actor" to_node="Mix Actor" to_socket="Primitive"/>
-		<Link from_node="Free Primitive" from_socket="Actor" to_node="Train (PPO)" to_socket="Actor"/>
+		<Link from_node="Mix Actor.001" from_socket="Actor" to_node="Free Primitive.001" to_socket="Actor"/>
+		<Link from_node="Free Primitive.001" from_socket="Actor" to_node="Train (PPO).001" to_socket="Actor"/>
+		<Link from_node="Train (PPO).001" from_socket="Trained actor" to_node="Free Primitive.002" to_socket="Actor"/>
+		<Link from_node="Free Primitive.002" from_socket="Actor" to_node="Train (PPO).003" to_socket="Actor"/>
+		<Link from_node="Train (PPO).001" from_socket="Critic" to_node="Train (PPO).003" to_socket="Critic"/>
+		<Link from_node="Load Actor" from_socket="Actor" to_node="Mix Actor.001" to_socket="Primitive"/>
+		<Link from_node="Load Actor.001" from_socket="Actor" to_node="Mix Actor.001" to_socket="Primitive"/>
+		<Link from_node="Dog Env.002" from_socket="Env" to_node="Mix Actor.001" to_socket="Env"/>
+		<Link from_node="Dog Env.002" from_socket="Env" to_node="Train (PPO).001" to_socket="Environment"/>
+		<Link from_node="Dog Env.002" from_socket="Env" to_node="Train (PPO).003" to_socket="Environment"/>
 	</Links>
 	<!--Generated from blender-->
 </TrainingRun>

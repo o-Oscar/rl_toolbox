@@ -4,7 +4,6 @@ import time
 import matplotlib.pyplot as plt
 from pathlib import Path
 
-import pybullet as p
 
 from .dogState import DogState
 from .kinematics import Kinematics
