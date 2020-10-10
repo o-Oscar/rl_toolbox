@@ -297,6 +297,9 @@ class TrainDistillationNode:
 			
 		elif self.mpi_role == 'worker':
 			rollout_len = int(self.data['rollout_len_prop'])
+			expert_action_prob = float(self.data["expert_action_prob_prop"])
+			log_std = float(self.data["log_std_prop"])
+			
 			#data = warehouse.send({"request":["node"]}) ; self.data['name'] == data['node']"
 			msg = {"request" : ["weights", "primitive", "node"]}
 			data = warehouse.send(msg)
@@ -317,7 +320,7 @@ class TrainDistillationNode:
 				cur_prim = primitives[id]
 				
 				# simulate rollout
-				all_s, all_a, all_r, all_mask = distillation.get_rollout(expert, cur_env, cur_prim, rollout_len)
+				all_s, all_a, all_r, all_mask = distillation.get_rollout(expert, cur_env, cur_prim, rollout_len, expert_action_prob, log_std)
 				
 				# send rollout back to warehouse
 				# and get network weights and update actor

@@ -16,7 +16,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 from models.critic import Critic
 
-def get_rollout (expert, env, prim, rollout_len):
+def get_rollout (expert, env, prim, rollout_len, expert_action_prob, log_std):
 	# --- simulating the environements ---
 	current_s = env.reset()
 	current_s = np.expand_dims(np.stack(current_s), axis=1)
@@ -43,12 +43,12 @@ def get_rollout (expert, env, prim, rollout_len):
 		prim_a = prim_a.numpy()
 		
 		#print(current_a.shape)
-		if np.random.random() < 1:
+		if np.random.random() < expert_action_prob:
 			step_a = expert_a
 		else:
 			step_a = prim_a
 		
-		step_a = step_a + np.random.normal(size=12).reshape(step_a.shape) * np.exp(-3)
+		step_a = step_a + np.random.normal(size=12).reshape(step_a.shape) * np.exp(log_std)
 		current_new_s, current_r, current_done = env.step(step_a)
 		
 		current_a = prim_a
