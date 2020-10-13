@@ -20,7 +20,7 @@ class BaseActor ():
 		self.core_model.load_weights(path.format("actor"))
 
 class SimpleActor (BaseActor):
-	def __init__ (self, env):
+	def __init__ (self, env, first_size=512, secound_size=256):
 		super().__init__()
 		self.act_dim = env.act_dim
 		self.obs_dim = env.obs_dim
@@ -44,8 +44,8 @@ class SimpleActor (BaseActor):
 		with tf.name_scope("core_model"):
 			obs_input = layers.Input(shape=(None, obs_ph.shape[-1]))
 			
-			mean = layers.Dense(512, activation='relu')(obs_input)
-			mean = layers.Dense(256, activation='relu')(mean)
+			mean = layers.Dense(first_size, activation='relu')(obs_input)
+			#mean = layers.Dense(secound_size, activation='relu')(mean)
 			action = layers.Dense(self.act_dim, activation='sigmoid')(mean)
 			
 			self.core_model = tf.keras.Model((obs_input, ()), (action, ()), name="actor_core_model")

@@ -179,10 +179,11 @@ class PPO:
 		self.optimizer.learning_rate = learning_rate
 		self.optimizer.apply_gradients(grad_and_var)
 	
-	def get_rollout (self, rollout_len):
+	def get_rollout (self, rollout_len, current_s=None):
 		# --- simulating the environements ---
-		current_s = self.env.reset()
-		current_s = np.expand_dims(np.stack(current_s), axis=1)
+		if current_s is None:
+			current_s = self.env.reset()
+			current_s = np.expand_dims(np.stack(current_s), axis=1)
 		current_actor_init_state = self.actor.get_init_state(self.env.num_envs)
 		
 		is_env_done = [False for i in range(self.env.num_envs)]
@@ -235,7 +236,7 @@ class PPO:
 		
 		return (all_s, all_a, all_r, all_neglog, all_masks)
 	
-	def train_networks (self, n, all_s, all_a, all_r, all_neglog, all_masks, train_step_nb):
+	def calc_gae (self, all_s, all_r, all_masks):
 		num_envs = all_s.shape[0]
 		
 		# --- calculating gae ---
@@ -253,9 +254,15 @@ class PPO:
 		all_gae = (all_gae - all_gae.mean()) / (all_gae.std() + 1e-8)
 		
 		all_last_values = all_last_values.astype(np.float32)
-		all_deltas = all_deltas.astype(np.float32)
 		all_gae = all_gae.astype(np.float32)
 		all_new_value = all_new_value.astype(np.float32)
+		
+		return all_last_values, all_gae, all_new_value
+	
+	def train_networks (self, n, all_s, all_a, all_r, all_neglog, all_masks, train_step_nb, all_last_values, all_gae, all_new_value):
+		num_envs = all_s.shape[0]
+		
+		#all_last_values, all_gae, all_new_value = calc_gae(all_s, all_r)
 		
 		# --- training the networks ---
 		for i in range(train_step_nb):
@@ -318,6 +325,7 @@ class PPO:
 			
 	def set_weights (self, weights):
 		self.actor.set_weights(weights)
+		#self.critic.set_weights(weights[1])
 			
 			
 			

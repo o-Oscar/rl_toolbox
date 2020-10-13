@@ -1,2 +1,2 @@
-model_checkpoint_path: "critic"
-all_model_checkpoint_paths: "critic"
+model_checkpoint_path: "actor"
+all_model_checkpoint_paths: "actor"

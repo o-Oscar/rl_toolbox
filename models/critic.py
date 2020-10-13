@@ -20,9 +20,10 @@ class SimpleCritic ():
 			else:
 				print("WARNING (critic) : no obs range definded. Proceed with caution")
 			
-			mean = layers.Dense(512, activation='relu')(obs_ph)
-			#mean = layers.Dense(512, activation='relu')(mean)
-			mean = layers.Dense(256, activation='relu')(mean)
+			mean = obs_ph
+			mean = layers.Dense(1024, activation='relu')(mean)
+			mean = layers.Dense(512, activation='relu')(mean)
+			#mean = layers.Dense(256, activation='relu')(mean)
 			lstm, *end_state = layers.LSTM(self.lstm_size, return_sequences=True, return_state=True)(mean, initial_state=init_state)
 			#mean = layers.concatenate([mean, lstm])
 			mean = tf.squeeze(layers.Dense(1, activation='linear')(mean), axis=[2])
@@ -38,6 +39,12 @@ class SimpleCritic ():
 		init_state_shape = (n_env, self.lstm_size)
 		return (np.zeros(init_state_shape), np.zeros(init_state_shape))
 	
+	def get_weights (self):
+		return self.model.get_weights()
+		
+	def set_weights (self, weights):
+		self.model.set_weights(weights)
+		
 class RnnCritic ():
 	def __init__ (self, env):
 		self.obs_dim = env.obs_dim

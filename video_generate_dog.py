@@ -23,7 +23,7 @@ if __name__ == '__main__':
 	env = DogEnv(debug=debug, render=render)
 
 
-	path = "results\\exp_1\\models\\expert\\{}"
+	path = "results\\exp_0\\models\\expert_300\\{}"
 	
 	if actor_type=="mix":
 		primitives = [SimpleActor(env) for i in range(2)]
@@ -34,7 +34,10 @@ if __name__ == '__main__':
 	if load_trained:
 		actor.load(path)
 		
-	env.test_adr = False
+	env.test_adr = True
+	env.training_change_cmd = False
+	env.state.target_speed =  np.asarray([1, 0])*1
+	env.state.target_rot_speed = 0
 	obs = env.reset()
 	init_state = actor.get_init_state(env.num_envs)
 	
@@ -63,6 +66,9 @@ if __name__ == '__main__':
 	
 	print(1/0)
 	"""
+	env.state.target_speed =  np.asarray([1, 0])*1
+	env.state.target_rot_speed = 0
+	
 	for i in range(30*15):
 		events = p.getKeyboardEvents()
 		speed = 1
@@ -88,10 +94,10 @@ if __name__ == '__main__':
 		rot = task[(i//30)%len(task)]
 		"""
 		#env.set_cmd(2, rot)
-		
+		"""
 		env.state.target_speed =  np.asarray([1, 0])*speed
 		env.state.target_rot_speed = rot
-		
+		"""
 		
 		
 		
@@ -104,7 +110,7 @@ if __name__ == '__main__':
 		dur = time.time()-start
 		act = act.numpy()
 		all_act.append(act)
-		act = act #+ np.random.normal(size=12).reshape(act.shape) * np.exp(-3)
+		act = act + np.random.normal(size=12).reshape(act.shape) * np.exp(-3)
 		#act = np.asarray([0.0, 1.0408382989215212, -1.968988857605835]*4)
 		#act = np.asarray([0.5, 0.5, 0.3]* 4)
 		obs, rew, done = env.step(act)
@@ -132,9 +138,10 @@ if __name__ == '__main__':
 		"""
 	
 	print("rew :", np.mean(all_rew))
-	#print("speed :", np.mean(env.sim.to_plot[8+24]))
-	print("rew :", np.mean(all_rew2))
+	print("speed :", np.mean(env.sim.to_plot[8+24]))
+	#print("rew :", np.mean(all_rew2))
 	#print("speed :", np.mean(env2.sim.to_plot[8+24]))
+	"""
 	"""
 	for i in range(7):
 		plt.plot(env.to_plot[i])
@@ -142,7 +149,7 @@ if __name__ == '__main__':
 	
 	
 	plt.show()
-	"""
+	
 	if len(env.sim.raw_frames) > 0:
 		with open("results/video/raw.out", "wb") as f:
 			f.write(np.stack(env.sim.raw_frames).tostring())

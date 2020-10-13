@@ -10,7 +10,9 @@ class SimpleActorNode:
 	def run (self, save_path, proc_num, input_dict, output_dict):
 		# create the actor
 		env = input_dict['Env'][0]
-		actor = SimpleActor (env)
+		first_size = int(self.data['first_size_prop'])
+		secound_size = int(self.data['secound_size_prop'])
+		actor = SimpleActor (env, first_size, secound_size)
 		output_dict['Actor'] = actor
 		
 		# save the actor
@@ -72,7 +74,8 @@ class LoadCriticNode:
 			critic.model.load_weights(path.format("critic"))
 		output_dict['Critic'] = critic
 
-			
+"""
+# free primitive
 class FreePrimitiveNode:
 	def __init__ (self, mpi_role):
 		self.mpi_role = mpi_role
@@ -88,7 +91,25 @@ class FreePrimitiveNode:
 			
 			#save the actor
 			actor.save(actor.save_path)
+"""
+
+# free the whole net
+class FreePrimitiveNode:
+	def __init__ (self, mpi_role):
+		self.mpi_role = mpi_role
+	
+	def run (self, save_path, proc_num, input_dict, output_dict):
+		actor = input_dict['Actor'][0]
+		for layer in actor.model.layers:
+			layer.trainable = (self.data['free_prop'] == "1")
+		output_dict['Actor'] = actor
+
+		if self.mpi_role == 'main':
 			
+			#save the actor
+			actor.save(actor.save_path)
+
+
 from environments import cartpole
 
 class CartPoleNode:
@@ -115,7 +136,7 @@ class DogEnvNode:
 				if self.data[name] == "1":
 					env.train_speed.append(v)
 			env.train_rot_speed = []
-			for v, name in [(0, "no_turn_prop"), (0.5, "slow_turn_prop"), (-0.5, "slow_turn_prop"), (1, "fast_turn_prop"), (-1, "fast_turn_prop")]:
+			for v, name in [(0, "no_turn_prop"), (0, "no_turn_prop"), (0.5, "slow_turn_prop"), (-0.5, "slow_turn_prop"), (1, "fast_turn_prop"), (-1, "fast_turn_prop")]:
 				if self.data[name] == "1":
 					env.train_rot_speed.append(v)
 			
@@ -154,7 +175,8 @@ class TrainPPONode:
 			for n in range(int(self.data['epoch_nb_prop'])):
 				# send the network weights
 				# and get the latest rollouts
-				msg = {"node":proc_num, "weights" : trainer.get_weights(), "rollout_nb":desired_rollout_nb, "request" : ["s", "a", "r", "neglog", "mask", "dumped", "adr"]}
+				req = ["s", "a", "r", "neglog", "mask", "dumped", "adr"]
+				msg = {"node":proc_num, "weights" : trainer.get_weights(), "rollout_nb":desired_rollout_nb, "request" : req}
 				data = warehouse.send(msg)
 				all_s = data["s"]
 				all_a = data["a"]
@@ -167,7 +189,8 @@ class TrainPPONode:
 					env.adr.log()
 				
 				# update the network weights
-				trainer.train_networks(n, all_s, all_a, all_r, all_neglog, all_masks, train_step_nb)
+				all_last_values, all_gae, all_new_value = trainer.calc_gae(all_s, all_r, all_masks)
+				trainer.train_networks(n, all_s, all_a, all_r, all_neglog, all_masks, train_step_nb, all_last_values, all_gae, all_new_value)
 				
 				#debug
 				n_rollouts = all_s.shape[0]
@@ -232,6 +255,7 @@ class TrainPPONode:
 		output_dict['Critic'] = trainer.critic
 
 import distillation
+import new_distillation
 
 class TrainDistillationNode:
 	def __init__ (self, mpi_role):
@@ -349,7 +373,7 @@ type_dict = {
 		'CartPoleNode':CartPoleNode,
 		'DogEnvNode':DogEnvNode,
 		'TrainPPONode':TrainPPONode,
-		'TrainDistillationNode':TrainDistillationNode,
+		'TrainDistillationNode':new_distillation.TrainDistillationNode,
 		}
 
 def get_process (type):

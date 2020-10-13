@@ -3,7 +3,7 @@
 from mpi4py import MPI
 import numpy as np
 
-rollout_comp = ["s", "a", "r", "neglog", "mask"]
+rollout_comp = ["s", "a", "prim_a", "r", "neglog", "mask", "last_values", "gae", "new_value"]
 
 
 # ------- STORAGE SYSTEM -------
@@ -24,6 +24,23 @@ def weights_sendable ():
 
 def send_weights ():
 	return _weights
+
+# critic weights storage system
+
+_has_critic = True
+_critic = ""
+
+def store_critic (critic):
+	global _has_critic
+	global _critic
+	_critic = critic
+	_has_critic = True
+
+def critic_sendable ():
+	return _has_critic
+
+def send_critic ():
+	return _critic
 
 # primitive weights storage system
 
@@ -111,15 +128,15 @@ WORK_DONE = 1
 # global var
 is_work_done = False
 
-store_dict = {"weights" : store_weights, "primitive" : store_primitive, "rollout_nb" : set_rollout_nb, "adr" : store_adr, "node" : store_node}
+store_dict = {"weights" : store_weights, "critic" : store_critic, "primitive" : store_primitive, "rollout_nb" : set_rollout_nb, "adr" : store_adr, "node" : store_node}
 for key in rollout_comp:
 	store_dict[key] = lambda x, key=key : store_rollout(x, key)
 
-sendable_dict = {"weights" : weights_sendable, "primitive" : primitive_sendable, "dumped" : (lambda : True), "adr" : adr_sendable, "node" : node_sendable}
+sendable_dict = {"weights" : weights_sendable, "critic" : critic_sendable, "primitive" : primitive_sendable, "dumped" : (lambda : True), "adr" : adr_sendable, "node" : node_sendable}
 for key in rollout_comp:
 	sendable_dict[key] = lambda key=key : rollout_sendable(key)
 
-send_dict = {"weights" : send_weights, "primitive" : send_primitive, "dumped" : (lambda : dumped_rollouts), "adr" : send_adr, "node" : send_node}
+send_dict = {"weights" : send_weights, "critic" : send_critic, "primitive" : send_primitive, "dumped" : (lambda : dumped_rollouts), "adr" : send_adr, "node" : send_node}
 for key in rollout_comp:
 	send_dict[key] = lambda key=key : send_rollout(key)
 
