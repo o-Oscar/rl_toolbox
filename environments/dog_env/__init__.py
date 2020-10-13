@@ -24,7 +24,7 @@ class DogEnv():
 		
 		self.adr = Adr()
 		self.test_adr = False
-		self.adr_rollout_len = 200
+		self.adr_rollout_len = 400
 		self.frame_at_speed = 0
 		
 		self.kin = Kinematics()
@@ -61,8 +61,14 @@ class DogEnv():
 		
 		
 		# --- setting up the adr ---
-		self.adr.add_param("act_rand_offset", 0, 0.003, 1000)
-		self.adr.add_param("act_rand_std", 0, 0.003, 1000)
+		#self.adr.add_param("act_rand_offset", 0, 0.003, 1000)
+		#self.adr.add_param("act_rand_std", 0, 0.003, 1000)
+		self.adr.add_param("act_rand_offset", 0, 0, 1000)
+		self.adr.add_param("act_rand_std", 0, 0, 1000)
+		
+		
+		self.adr.add_param("max_turning_rate", 0, 0.01, 1)
+		
 		
 		# --- training settings ---
 		self.train_continuous = True
@@ -74,8 +80,8 @@ class DogEnv():
 	def step(self, action):
 		
 		act = action.flatten()
-		act_delta = np.random.normal(size=act.shape) * self.adr.value("act_rand_std") + self.act_offset
-		act_rand = act + act_delta
+		#act_delta = np.random.normal(size=act.shape) * self.adr.value("act_rand_std") + self.act_offset
+		act_rand = act #+ act_delta
 		legs_angle = self.kin.calc_joint_target (act_rand)
 		self.sim.step(act_rand, legs_angle)
 		
@@ -93,23 +99,33 @@ class DogEnv():
 		if self.test_adr:
 			pos_speed_deviation = np.sum(np.square(self.state.target_speed - self.state.mean_planar_speed))
 			rot_speed_deviation = np.square(self.state.target_rot_speed - self.state.mean_z_rot_speed)
+			self.dev = pos_speed_deviation + rot_speed_deviation
 			if pos_speed_deviation + rot_speed_deviation < np.square(0.2):
 				self.frame_at_speed += 1
-			adr_success = not done and self.frame_at_speed > 50
+			adr_success = not done and self.frame_at_speed > 200
 			self.adr.step(adr_success, not adr_success)
 		else:
 			self.adr.step(False, False)
 		
-		if self.state.frame == 110 and self.training_change_cmd:
+		if not self.debug:
 			self.reset_cmd()
 		
 		
 		return self.calc_obs(), [rew], [done]
 		
 	def reset(self):
-	
 		self.adr.reset()
 		self.frame_at_speed = 0
+		
+		self.turn_rate = self.adr.value("max_turning_rate")
+		if not self.adr.is_test_param("max_turning_rate"):
+			self.turn_rate *= np.random.random()
+		if np.random.random() < .5:
+			self.turn_rate *= -1
+		if self.debug:
+			self.turn_rate = 1
+			#pass
+		
 		
 		des_v = 0#np.sqrt(np.sum(np.square(self.state.target_speed))) * np.random.random()
 		des_clear = 0#0.05 * np.random.random()
@@ -129,11 +145,12 @@ class DogEnv():
 			self.obs_pool += self.state.calc_obs() + [act]
 		
 		
-		self.act_offset = (np.random.random(size=(12,))*2-1)*self.adr.value("act_rand_offset")
+		#self.act_offset = (np.random.random(size=(12,))*2-1)*self.adr.value("act_rand_offset")
 		
 		return self.calc_obs()
 	
 	def reset_cmd (self):
+		"""
 		if self.train_continuous:
 			if np.random.random() < 0.1:
 				targ_speed = 0
@@ -147,7 +164,19 @@ class DogEnv():
 		
 		self.state.target_speed = np.asarray([1, 0]) * targ_speed
 		self.state.target_rot_speed = targ_rot
-		
+		"""
+		targ_speed = 1
+		if self.state.frame < 100:
+			targ_rot = 0
+		elif self.state.frame < 200:
+			targ_rot = -self.turn_rate
+		elif self.state.frame < 300:
+			targ_rot = self.turn_rate
+		else :
+			targ_rot = 0
+			
+		self.state.target_speed = np.asarray([1, 0]) * targ_speed
+		self.state.target_rot_speed = targ_rot
 	
 	def calc_obs (self):
 		return [np.concatenate(self.obs_pool)]

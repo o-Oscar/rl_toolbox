@@ -45,7 +45,7 @@ class SimpleActor (BaseActor):
 			obs_input = layers.Input(shape=(None, obs_ph.shape[-1]))
 			
 			mean = layers.Dense(first_size, activation='relu')(obs_input)
-			#mean = layers.Dense(secound_size, activation='relu')(mean)
+			mean = layers.Dense(secound_size, activation='relu')(mean)
 			action = layers.Dense(self.act_dim, activation='sigmoid')(mean)
 			
 			self.core_model = tf.keras.Model((obs_input, ()), (action, ()), name="actor_core_model")

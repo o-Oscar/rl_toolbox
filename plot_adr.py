@@ -7,7 +7,7 @@ INDIVIDUAL_PLOT = 1
 
 plot_type = MEAN_PLOT
 
-adr_names = [""]
+adr_names = ["exp_1"]
 
 if __name__ == "__main__":
 	all_names = []

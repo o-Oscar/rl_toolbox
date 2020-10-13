@@ -46,8 +46,10 @@ class DogState:
 		
 		# --- adr ---
 		for name in ["joint_pos", "local_up", "rot_vect"]:
-			self.adr.add_param(name+"_rand_offset", 0, 0.003, 1000)
-			self.adr.add_param(name+"_rand_std", 0, 0.003, 1000)
+			#self.adr.add_param(name+"_rand_offset", 0, 0.003, 1000)
+			#self.adr.add_param(name+"_rand_std", 0, 0.003, 1000)
+			self.adr.add_param(name+"_rand_offset", 0, 0, 1000)
+			self.adr.add_param(name+"_rand_std", 0, 0, 1000)
 	
 		self.reset()
 		

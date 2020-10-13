@@ -1,5 +1,7 @@
 import numpy as np
 from pathlib import Path
+import sys
+
 
 
 class Adr:
@@ -102,7 +104,10 @@ class Adr:
 			self.tested_param = keys[id]
 	
 	def save (self):
-		save_path = "adr/rank_" #+str(self.rank)
+		exp_name = "default"
+		if len(sys.argv) > 1:
+			exp_name = sys.argv[1]
+		save_path = "adr/rank_" + exp_name #+str(self.rank)
 		names = []
 		values = []
 		for name in self.logger.keys():

@@ -23,7 +23,7 @@ if __name__ == '__main__':
 	env = DogEnv(debug=debug, render=render)
 
 
-	path = "results\\exp_0\\models\\expert_300\\{}"
+	path = "results\\exp_0\\models\\expert\\{}"
 	
 	if actor_type=="mix":
 		primitives = [SimpleActor(env) for i in range(2)]
@@ -49,6 +49,7 @@ if __name__ == '__main__':
 	all_influence = []
 	all_act = []
 	all_inf = []
+	all_dev = []
 	
 	"""
 	env.reset(1)
@@ -69,7 +70,7 @@ if __name__ == '__main__':
 	env.state.target_speed =  np.asarray([1, 0])*1
 	env.state.target_rot_speed = 0
 	
-	for i in range(30*15):
+	for i in range(400):
 		events = p.getKeyboardEvents()
 		speed = 1
 		rot = 0
@@ -94,10 +95,10 @@ if __name__ == '__main__':
 		rot = task[(i//30)%len(task)]
 		"""
 		#env.set_cmd(2, rot)
-		"""
+		
 		env.state.target_speed =  np.asarray([1, 0])*speed
 		env.state.target_rot_speed = rot
-		"""
+		
 		
 		
 		
@@ -110,12 +111,13 @@ if __name__ == '__main__':
 		dur = time.time()-start
 		act = act.numpy()
 		all_act.append(act)
-		act = act + np.random.normal(size=12).reshape(act.shape) * np.exp(-3)
+		act = act# + np.random.normal(size=12).reshape(act.shape) * np.exp(-3)
 		#act = np.asarray([0.0, 1.0408382989215212, -1.968988857605835]*4)
 		#act = np.asarray([0.5, 0.5, 0.3]* 4)
 		obs, rew, done = env.step(act)
 		all_obs.append(obs)
 		all_rew.append(rew[0])
+		all_dev.append(env.dev)
 		#print(rew)
 		time.sleep(1/30)
 	"""
@@ -142,12 +144,15 @@ if __name__ == '__main__':
 	#print("rew :", np.mean(all_rew2))
 	#print("speed :", np.mean(env2.sim.to_plot[8+24]))
 	"""
-	"""
+	
 	for i in range(7):
 		plt.plot(env.to_plot[i])
 	plt.plot(env.sim.to_plot[8+24])
 	
 	
+	plt.show()
+	"""
+	plt.plot(all_dev)
 	plt.show()
 	
 	if len(env.sim.raw_frames) > 0:

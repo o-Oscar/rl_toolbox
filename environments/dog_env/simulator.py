@@ -53,7 +53,8 @@ class Simulator():
 		p.setPhysicsEngineParameter(fixedTimeStep=self.timeStep, physicsClientId=self.pcId)
 		
 		# --- setting up the adr ---
-		self.adr.add_param("min_friction", 0.5, -0.004, 0.1)
+		#self.adr.add_param("min_friction", 0.5, -0.004, 0.1)
+		self.adr.add_param("min_friction", 0.5, 0, 0.1)
 		
 		
 		friction = 0.5
