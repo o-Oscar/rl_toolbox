@@ -75,6 +75,7 @@ class DogEnv():
 		self.train_speed = []
 		self.train_rot_speed = []
 		self.training_change_cmd = True
+		self.only_forward = False
 		
 	
 	def step(self, action):
@@ -117,7 +118,7 @@ class DogEnv():
 		self.adr.reset()
 		self.frame_at_speed = 0
 		
-		self.turn_rate = self.adr.value("max_turning_rate")
+		self.turn_rate = 1#self.adr.value("max_turning_rate")
 		if not self.adr.is_test_param("max_turning_rate"):
 			self.turn_rate *= np.random.random()
 		if np.random.random() < .5:
@@ -125,6 +126,21 @@ class DogEnv():
 		if self.debug:
 			self.turn_rate = 1
 			#pass
+			
+		"""
+		self.end_speed = 0
+		self.end_rot = 0
+		
+		while self.end_speed*self.end_speed + self.end_rot*self.end_rot < 0.1*0.1:
+			self.end_speed = np.random.random()
+			self.end_rot = np.random.random()*2-1
+		"""
+		self.end_speed = np.random.random()
+		self.end_rot = np.random.random()*2-1
+		
+		if self.end_speed*self.end_speed + self.end_rot*self.end_rot < 0.1*0.1:
+			self.end_speed = 0
+			self.end_rot = 0
 		
 		
 		des_v = 0#np.sqrt(np.sum(np.square(self.state.target_speed))) * np.random.random()
@@ -165,18 +181,23 @@ class DogEnv():
 		self.state.target_speed = np.asarray([1, 0]) * targ_speed
 		self.state.target_rot_speed = targ_rot
 		"""
-		targ_speed = 1
-		if self.state.frame < 100:
-			targ_rot = 0
-		elif self.state.frame < 200:
-			targ_rot = -self.turn_rate
-		elif self.state.frame < 300:
-			targ_rot = self.turn_rate
-		else :
-			targ_rot = 0
-			
-		self.state.target_speed = np.asarray([1, 0]) * targ_speed
-		self.state.target_rot_speed = targ_rot
+		if self.only_forward:
+			self.state.target_speed = np.asarray([1, 0]) * 1
+			self.state.target_rot_speed = 0
+		else:
+			targ_speed = 1
+			if self.state.frame < 100:
+				targ_rot = 0
+			elif self.state.frame < 200:
+				targ_rot = -self.turn_rate
+			elif self.state.frame < 300:
+				targ_rot = self.turn_rate
+			else :
+				targ_speed = self.end_speed
+				targ_rot = self.end_rot
+				
+			self.state.target_speed = np.asarray([1, 0]) * targ_speed
+			self.state.target_rot_speed = targ_rot
 	
 	def calc_obs (self):
 		return [np.concatenate(self.obs_pool)]
