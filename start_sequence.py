@@ -7,6 +7,10 @@ from mpi4py import MPI
 import configuration.nodes
 import warehouse
 
+"""
+exp_0 : no critic knowlege
+exp_1 : critic knows the act offset
+"""
 
 """
 mpiexec -n 10 python start_sequence.py exp_0

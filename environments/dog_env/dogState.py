@@ -14,6 +14,9 @@ class DogState:
 			if state_Id == config.JOINT_POS or state_Id == config.JOINT_POS_RAND:
 				self.obs_mean += [0.0, 1.0408382989215212, -1.968988857605835]*4
 				self.obs_std += [0.2]*12
+			elif state_Id == config.JOINT_VEL or state_Id == config.JOINT_VEL_RAND:
+				self.obs_mean += [0.0, 1.0408382989215212, -1.968988857605835]*4
+				self.obs_std += [0.2]*12
 			elif state_Id == config.LOCAL_UP or state_Id == config.LOCAL_UP_RAND:
 				self.obs_mean += [0, 0, 1]
 				self.obs_std += [0.1]*3
@@ -40,17 +43,21 @@ class DogState:
 			elif state_Id == config.MEAN_ROT_VEL:
 				self.obs_mean += [0]
 				self.obs_std += [2]
+			elif state_Id == config.ACT_OFFSET:
+				self.obs_mean += [0] * 12
+				self.obs_std += [1] * 12
 			else:
 				print("ERROR : invalid obs config")
 				print(1/0)
 		
 		# --- adr ---
+		
 		for name in ["joint_pos", "local_up", "rot_vect"]:
 			#self.adr.add_param(name+"_rand_offset", 0, 0.003, 1000)
 			#self.adr.add_param(name+"_rand_std", 0, 0.003, 1000)
 			self.adr.add_param(name+"_rand_offset", 0, 0, 1000)
 			self.adr.add_param(name+"_rand_std", 0, 0, 1000)
-	
+		
 		self.reset()
 		
 		
@@ -95,6 +102,10 @@ class DogState:
 		#self.contact_force = [0]*4
 		self.base_pos_acc = [0, 0, 0]
 		self.base_rot_acc = [0, 0, 0]
+		self.act_offset = np.zeros((12,))
+		self.joint_offset = np.zeros((12,))
+		self.loc_up_vect_offset = np.zeros((3,))
+		
 		
 		# --- adr ---
 		self.rand_offset = []
@@ -116,15 +127,22 @@ class DogState:
 		
 			if state_Id == config.JOINT_POS:
 				for i in range(12):
-					to_return.append(self.joint_rot[i])
+					to_return.append(self.joint_rot[i] + self.joint_offset[i])
 			elif state_Id == config.JOINT_POS_RAND:
 				for i in range(12):
 					to_return.append(self.joint_rot[i] + delta_joint_pos[i])
 					
+			elif state_Id == config.JOINT_VEL:
+				for i in range(12):
+					to_return.append(self.joint_rot_speed[i])
+			elif state_Id == config.JOINT_VEL_RAND:
+				for i in range(12):
+					to_return.append(self.joint_rot_speed[i])
+					
 			elif state_Id == config.LOCAL_UP:
 				to_return += [self.loc_up_vect[0], self.loc_up_vect[1], self.loc_up_vect[2]]
 			elif state_Id == config.LOCAL_UP_RAND:
-				to_return += [self.loc_up_vect[0]+delta_local_up[0], self.loc_up_vect[1]+delta_local_up[1], self.loc_up_vect[2]+delta_local_up[2]]
+				to_return += [self.loc_up_vect[0]+self.loc_up_vect_offset[0], self.loc_up_vect[1]+self.loc_up_vect_offset[1], self.loc_up_vect[2]+self.loc_up_vect_offset[2]]
 				
 			elif state_Id == config.ROT_VEL:
 				to_return += [self.loc_rot_speed[0], self.loc_rot_speed[1], self.loc_rot_speed[2]]
@@ -144,6 +162,9 @@ class DogState:
 				to_return += [self.mean_planar_speed[0], self.mean_planar_speed[1]]
 			elif state_Id == config.MEAN_ROT_VEL:
 				to_return += [self.mean_z_rot_speed]
+			elif state_Id == config.ACT_OFFSET:
+				for i in range(12):
+					to_return += [self.act_offset[i]]
 			else:
 				print("ERROR : invalid obs config")
 				print(1/0)

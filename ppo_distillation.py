@@ -68,6 +68,22 @@ class PPO:
 				if layer.trainable:
 					self.trainable_variables = self.trainable_variables + layer.trainable_weights
 		
+		self.init_actor_variable = []
+		self.actor_weight_nb = 0
+		for layer in self.actor.model.layers:
+			for weight in layer.trainable_weights:
+				self.actor_weight_nb += np.prod(weight.value().numpy().shape)
+				self.init_actor_variable.append((weight, weight.value().numpy()))
+		print("weights_actor_nb :", self.actor_weight_nb)
+		
+		self.init_critic_variable = []
+		self.critic_weight_nb = 0
+		for layer in self.critic.model.layers:
+			for weight in layer.trainable_weights:
+				self.critic_weight_nb += np.prod(weight.value().numpy().shape)
+				self.init_critic_variable.append((weight, weight.value().numpy()))
+		print("weights_critic_nb :", self.critic_weight_nb)
+		
 		self.optimizer = tf.keras.optimizers.Adam(learning_rate=2.5e-4, epsilon=1e-5)
 		
 		# randomize actor (exploration)
@@ -111,6 +127,13 @@ class PPO:
 				#self.critic_loss = .5 * tf.reduce_mean(tf.multiply(critic_losses1 + critic_losses2, self.mask_ph))/tf.reduce_mean(self.mask_ph) # sum
 				#self.critic_loss = .5 * tf.reduce_mean(tf.multiply(critic_losses2, self.mask_ph))/tf.reduce_mean(self.mask_ph) # just normal
 		
+				# --- prudent loss to not stray to far away from initialisation ---
+				critic_prudent_loss = 0
+				for weight, value in self.init_critic_variable:
+					critic_prudent_loss += tf.reduce_sum(tf.square(weight - value))
+					
+				critic_loss += critic_prudent_loss * 0.1
+				
 		
 			with tf.name_scope("actor"):
 				with tf.name_scope("train_neglog"):
@@ -121,12 +144,20 @@ class PPO:
 					actor_loss1 = -advantage * ratio
 					actor_loss2 = -advantage * tf.clip_by_value(ratio, 1.0 - actor_clip_range, 1.0 + actor_clip_range)
 					actor_loss = tf.reduce_mean(tf.multiply(tf.maximum(actor_loss1, actor_loss2), mask))/tf.reduce_mean(mask)
-				
+					
+					# --- primitiv loss to folow a good baseline ---
 					prim_loss = .5 * tf.reduce_mean(tf.multiply(self.create_neglogp((obs, actor_init_state), prim_a), mask))/tf.reduce_mean(mask)
 					# actor_loss += prim_loss * tf.maximum(tf.minimum(1-tf.cast(n_step, tf.float32)/1000, 1), 0) * 0.5 / 20 # best so far
 					fac = (1 - tf.cast(tf.math.greater(n_step, 1000), tf.float32)) * tf.maximum(tf.minimum(tf.exp(-tf.cast(n_step, tf.float32)/self.tau), 1), 0) / 20
 					actor_loss += prim_loss * fac
-				
+					
+					# --- prudent loss to not stray to far away from initialisation ---
+					actor_prudent_loss = 0
+					for weight, value in self.init_actor_variable:
+						actor_prudent_loss += tf.reduce_sum(tf.square(weight - value))
+					
+					actor_loss += actor_prudent_loss * 0.1 # * 0.5 / self.weight_nb
+					
 				with tf.name_scope("probe"):
 					with tf.name_scope("approxkl"):
 						approxkl = .5 * tf.reduce_mean(tf.square(train_neglog - old_neglog))
@@ -148,6 +179,9 @@ class PPO:
 				
 				with tf.name_scope("training"):
 					tf.summary.scalar('actor_loss', actor_loss, n_step)
+					tf.summary.scalar('prim_loss', prim_loss, n_step)
+					tf.summary.scalar('actor_prudent_loss', actor_prudent_loss, n_step)
+					tf.summary.scalar('critic_prudent_loss', critic_prudent_loss, n_step)
 					tf.summary.scalar('critic_loss', critic_loss, n_step)
 					tf.summary.scalar('mean_ep_len', tf.reduce_mean(tf.reduce_sum(mask, axis=1)), n_step)
 				with tf.name_scope("optimized"):

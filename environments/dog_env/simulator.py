@@ -22,7 +22,7 @@ class Simulator():
 		self.lowpass_joint_f = 15 # Hz # 15
 		self.lowpass_joint_alpha = min(1, self.timeStep*self.lowpass_joint_f)
 		
-		self.lowpass_rew_f = 5 # Hz
+		self.lowpass_rew_f = 5 # 5 # Hz
 		self.lowpass_rew_alpha = min(1, self.timeStep*self.lowpass_rew_f*self.frameSkip)
 		
 		self.curr_ep = 0
@@ -54,7 +54,7 @@ class Simulator():
 		
 		# --- setting up the adr ---
 		#self.adr.add_param("min_friction", 0.5, -0.004, 0.1)
-		self.adr.add_param("min_friction", 0.5, 0, 0.1)
+		#self.adr.add_param("min_friction", 0.5, 0, 0.1)
 		
 		
 		friction = 0.5
@@ -85,8 +85,9 @@ class Simulator():
 		if self.debug:
 			for i in range(12):
 				self.to_plot[i].append(self.state.joint_rot[i])
-				#self.to_plot[i+12].append(self.state.joint_rot_speed[i])
-				self.to_plot[i+12].append(action[i])
+				#self.to_plot[i+12].append(self.state.joint_rot_speed[i])mean_action
+				#self.to_plot[i+12].append(action[i])
+				self.to_plot[i+12].append(self.state.mean_action[i])
 			for i in range(4):
 				self.to_plot[i+24].append(self.state.foot_clearance[i])
 			for i in range(4):
@@ -113,7 +114,8 @@ class Simulator():
 	def update_joint_lowpass (self, joint_target):
 		for i in range(12):
 			self.state.joint_target[i] = self.state.joint_target[i]*(1-self.lowpass_joint_alpha) + joint_target[i]*self.lowpass_joint_alpha
-			p.setJointMotorControl2(self.robotId, i, p.POSITION_CONTROL, targetPosition=self.state.joint_target[i], force=10, maxVelocity=20, physicsClientId=self.pcId)
+			true_target = self.state.joint_target[i] + self.state.joint_offset[i]
+			p.setJointMotorControl2(self.robotId, i, p.POSITION_CONTROL, targetPosition=true_target, force=10, maxVelocity=20, physicsClientId=self.pcId)
 	
 	def update_state (self, action):
 		# experimental
@@ -136,7 +138,7 @@ class Simulator():
 		# --- joint pos and speed ---
 		for i in range(p.getNumJoints(self.robotId, physicsClientId=self.pcId)):
 			data = p.getJointState(self.robotId, i, physicsClientId=self.pcId)
-			self.state.joint_rot[i] = data[0]
+			self.state.joint_rot[i] = data[0] - self.state.joint_offset[i]
 			self.state.joint_rot_speed[i] = data[1]
 			self.state.joint_torque[i] = data[3]
 		
@@ -218,13 +220,16 @@ class Simulator():
 	
 		# --- adr ---
 		max_friction = 1
-		friction = np.random.random()*(max_friction-self.adr.value("min_friction")) + self.adr.value("min_friction")
+		friction = 0.5 # np.random.random()*(max_friction-self.adr.value("min_friction")) + self.adr.value("min_friction")
 		if self.adr.is_test_param("min_friction"):
 			friction = self.adr.value("min_friction")
+		friction = 2 # np.random.random() * 2 # default 0.5
+		restitution = 0. # np.random.random()* 0.4 # default 0
 		
 		for i in range(12):
-			p.changeDynamics(self.robotId, i, lateralFriction=friction, physicsClientId=self.pcId)
-		p.changeDynamics(self.groundId, -1, lateralFriction=friction, physicsClientId=self.pcId)
+			#print(p.getDynamicsInfo(self.robotId, i, physicsClientId=self.pcId))
+			p.changeDynamics(self.robotId, i, lateralFriction=np.random.random()*friction, physicsClientId=self.pcId, restitution=restitution)
+		p.changeDynamics(self.groundId, -1, lateralFriction=friction, physicsClientId=self.pcId, restitution=0.9)
 			
 			
 		#self.state.a_pos_speed = 1 - min(max(self.curr_ep/700, 0), 1)

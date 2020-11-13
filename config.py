@@ -24,17 +24,22 @@ LOCAL_UP = 2
 LOCAL_UP_RAND = 3
 ROT_VEL = 4
 ROT_VEL_RAND = 5
+JOINT_VEL = 6
+JOINT_VEL_RAND = 7
 
-POS_VEL_CMD = 6
-ROT_VEL_CMD = 7
+POS_VEL_CMD = 60
+ROT_VEL_CMD = 70
 
-HEIGHT = 8
-POS_VEL = 9
-MEAN_POS_VEL = 10
-MEAN_ROT_VEL = 11
+HEIGHT = 800
+POS_VEL = 900
+MEAN_POS_VEL = 1000
+MEAN_ROT_VEL = 1100
+ACT_OFFSET = 1200
 
 state_vect = [JOINT_POS,
+				JOINT_VEL,
 				JOINT_POS_RAND,
+				JOINT_VEL_RAND,
 				LOCAL_UP,
 				LOCAL_UP_RAND,
 				ROT_VEL,
@@ -44,6 +49,7 @@ state_vect = [JOINT_POS,
 				HEIGHT,
 				POS_VEL,
 				MEAN_POS_VEL,
-				MEAN_ROT_VEL]
+				MEAN_ROT_VEL] # ,
+				# ACT_OFFSET]
 
-obs_transition_len = 3
+obs_transition_len = 1

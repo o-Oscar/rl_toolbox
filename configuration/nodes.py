@@ -12,7 +12,8 @@ class SimpleActorNode:
 		env = input_dict['Env'][0]
 		first_size = int(self.data['first_size_prop'])
 		secound_size = int(self.data['secound_size_prop'])
-		actor = SimpleActor (env, first_size, secound_size)
+		activation = self.data['activation_prop']
+		actor = SimpleActor (env, first_size, secound_size, activation)
 		output_dict['Actor'] = actor
 		
 		# save the actor
@@ -42,7 +43,27 @@ class MixActorNode:
 			actor.save_path += "/{}"
 			actor.save(actor.save_path)
 		
+from models.actor import LSTMActor
+
+class LSTMActorNode:
+	def __init__ (self, mpi_role):
+		self.mpi_role = mpi_role
+	
+	def run (self, save_path, proc_num, input_dict, output_dict):
+		# create the actor
+		env = input_dict['Env'][0]
+		actor = LSTMActor (env)
+		output_dict['Actor'] = actor
 		
+		# save the actor
+		if self.mpi_role == 'main':
+			actor.save_path = os.path.join(save_path['models'], self.data['save_name_prop'])
+			os.makedirs(actor.save_path)
+			actor.save_path += "/{}"
+			actor.save(actor.save_path)
+			
+			
+			
 class LoadActorNode:
 	def __init__ (self, mpi_role):
 		self.mpi_role = mpi_role
@@ -74,25 +95,6 @@ class LoadCriticNode:
 			critic.model.load_weights(path.format("critic"))
 		output_dict['Critic'] = critic
 
-"""
-# free primitive
-class FreePrimitiveNode:
-	def __init__ (self, mpi_role):
-		self.mpi_role = mpi_role
-	
-	def run (self, save_path, proc_num, input_dict, output_dict):
-		actor = input_dict['Actor'][0]
-		for prim in actor.primitives_cpy:
-			for layer in prim.layers:
-				layer.trainable = True if self.data['free_prop'] == "1" else False
-		output_dict['Actor'] = actor
-
-		if self.mpi_role == 'main':
-			
-			#save the actor
-			actor.save(actor.save_path)
-"""
-
 # free the whole net
 class FreePrimitiveNode:
 	def __init__ (self, mpi_role):
@@ -109,6 +111,16 @@ class FreePrimitiveNode:
 			#save the actor
 			actor.save(actor.save_path)
 
+
+from environments import simple_env
+
+class SimpleEnvNode:
+	def __init__ (self, mpi_role):
+		self.mpi_role = mpi_role
+	
+	def run (self, save_path, proc_num, input_dict, output_dict):
+		env = simple_env.SimpleEnv()
+		output_dict['Env'] = env
 
 from environments import cartpole
 
@@ -131,19 +143,11 @@ class DogEnvNode:
 		env = dog_env.DogEnv()
 		if (self.data['full_parkour_prop'] == "1") == (self.data['simple_walk_prop'] == "1"):
 			raise NameError('dog env not properly set up')
-		env.only_forward = self.data['simple_walk_prop'] == "1"
-		"""
-		env.train_continuous = self.data['continuous_prop'] == "1"
-		if not env.train_continuous:
-			env.train_speed = []
-			for v, name in [(0, "no_walk_prop"), (0.5, "slow_walk_prop"), (1, "fast_walk_prop")]:
-				if self.data[name] == "1":
-					env.train_speed.append(v)
-			env.train_rot_speed = []
-			for v, name in [(0, "no_turn_prop"), (0, "no_turn_prop"), (0.5, "slow_turn_prop"), (-0.5, "slow_turn_prop"), (1, "fast_turn_prop"), (-1, "fast_turn_prop")]:
-				if self.data[name] == "1":
-					env.train_rot_speed.append(v)
-		"""
+		#env.only_forward = self.data['simple_walk_prop'] == "1"
+		#env.has_rand_act_delta = self.data['rand_delta_prop'] == "1"
+		#env.carthesian_act = self.data['carthesian_act_prop'] == "1"
+		env.training_mode = int(self.data['mode_prop'])
+		env.rewards[6].a *= 0 if self.data['base_rot_rew_prop'] == "0" else 1
 		output_dict['Env'] = env
 
 from ppo import PPO
@@ -207,8 +211,9 @@ class TrainPPONode:
 					print("fps : {}".format(n_rollouts*rollout_len/dt), flush=True)
 				print("mean_rew : {}".format(np.sum(all_r * all_masks)/np.sum(all_masks)), flush=True)
 				
-				env.adr.save()
-			env.adr.save()
+				if USE_ADR:
+					env.adr.save()
+					
 		elif self.mpi_role == 'worker':
 			trainer = PPO(env, actor, init_log_std=log_std)
 			rollout_len = int(self.data['rollout_len_prop'])
@@ -374,10 +379,12 @@ type_dict = {
 		'LoadActorNode':LoadActorNode,
 		'LoadCriticNode':LoadCriticNode,
 		'FreePrimitiveNode':FreePrimitiveNode,
+		'SimpleEnvNode':SimpleEnvNode,
 		'CartPoleNode':CartPoleNode,
 		'DogEnvNode':DogEnvNode,
 		'TrainPPONode':TrainPPONode,
 		'TrainDistillationNode':new_distillation.TrainDistillationNode,
+		'LSTMActorNode':LSTMActorNode
 		}
 
 def get_process (type):

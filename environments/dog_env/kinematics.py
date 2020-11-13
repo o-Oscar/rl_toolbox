@@ -2,8 +2,6 @@ import numpy as np
 import time
 import matplotlib.pyplot as plt
 
-import pybullet as p
-
 class Kinematics():
 	def __init__(self):
 		self.l1 = 0.167
@@ -18,12 +16,16 @@ class Kinematics():
 		self.b_M = np.asarray([0.4, 0.2, -0.1]).reshape((3,1))
 		"""
 		self.create_range ()
+		self.carthesian_act = True
 	
 	def calc_joint_target(self, action):
 		
 		flat_action = action.flatten()
 		flat_action = np.maximum(np.minimum(flat_action, 1), 0)
-		legs_angle = self.action_to_targ_angle_2 (flat_action)
+		if self.carthesian_act:
+			legs_angle = self.action_to_targ_angle_2 (flat_action) # _2
+		else:
+			legs_angle = self.action_to_targ_angle (flat_action) # _2
 		#legs_angle = [0.0, 0.7, -2*0.7]*4
 		return legs_angle
 	
@@ -101,3 +103,20 @@ class Kinematics():
 		u = np.cross(v1,v2)
 		b = np.sum(p2*u)
 		return u, b
+	
+if __name__ == "__main__":
+	kin = Kinematics ()
+	n = 2
+	tests = [x/n for x in range(n+1)]
+	joint_min = [0, 0, 0]
+	joint_max = [0, 0, 0]
+	for x in tests:
+		for y in tests:
+			for z in tests:
+				legs_coord = kin.calc_coord([x, y, z])
+				#print(legs_coord[0])
+				legs_angle = kin.calc_angle(legs_coord)
+				joint_min = np.minimum(joint_min, legs_angle)
+				joint_max = np.minimum(joint_min, legs_angle)
+	print(joint_min)
+	print(joint_miax)

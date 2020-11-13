@@ -70,6 +70,12 @@ class RnnCritic ():
 		init_state_shape = (n_env, self.lstm_size)
 		return (np.zeros(init_state_shape, dtype=np.float32), np.zeros(init_state_shape, dtype=np.float32))
 	
+	def get_weights (self):
+		return self.model.get_weights()
+		
+	def set_weights (self, weights):
+		self.model.set_weights(weights)
+		
 
 class Critic (SimpleCritic):
 	pass

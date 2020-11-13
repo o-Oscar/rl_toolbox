@@ -5,9 +5,9 @@ import matplotlib.pyplot as plt
 MEAN_PLOT = 0
 INDIVIDUAL_PLOT = 1
 
-plot_type = MEAN_PLOT
+plot_type = INDIVIDUAL_PLOT
 
-adr_names = ["exp_1"]
+adr_names = ["exp_0", "exp_1", "exp_2"]
 
 if __name__ == "__main__":
 	all_names = []
@@ -23,13 +23,16 @@ if __name__ == "__main__":
 		all_names.append(names)
 	
 	if plot_type == INDIVIDUAL_PLOT:
-		indiv_values = np.concatenate(all_values, axis=0)
-		labels = sum([[name+str(i) for name in names] for i, names in enumerate(all_names)], [])
-		for label, value in zip(labels, indiv_values):
-			plt.plot(value, label=label)
 		
-		plt.legend()
+		fig, axs = plt.subplots(1, 3)
+		
+		for ax, names, values in zip(axs, all_names, all_values):
+			for name, value in zip(names, values):
+				ax.plot(value, label=name)
+			
+			ax.legend()
 		plt.show()
+	
 	elif plot_type == MEAN_PLOT:
 		sum_dict = {}
 		len_dict = {}
