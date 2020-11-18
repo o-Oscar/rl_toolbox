@@ -155,7 +155,8 @@ class PPO:
 						tf.summary.scalar('symetry_loss', symetry_loss, n_step)
 					tf.summary.scalar('discounted_rewards', tf.reduce_mean(tf.multiply(old_value + advantage, mask))/tf.reduce_mean(mask), n_step)
 					tf.summary.scalar('mean_rew', tf.reduce_mean(tf.multiply(reward, mask))/tf.reduce_mean(mask), n_step)
-					tf.summary.scalar('entropy_loss', entropy_loss, n_step)
+					#tf.summary.scalar('entropy_loss', entropy_loss, n_step)
+					tf.summary.scalar('neg_loss', tf.reduce_sum(self.logstd), n_step)
 		
 		
 		return loss
@@ -271,7 +272,7 @@ class PPO:
 		num_envs = all_s.shape[0]
 		#all_last_values, all_gae, all_new_value = calc_gae(all_s, all_r)
 		
-		self.actor.scaler.update(all_s)
+		self.actor.scaler.update(all_s*np.expand_dims(all_masks, axis=2))
 		scaled_s = self.actor.scaler.scale_obs(all_s)
 		
 		# --- training the networks ---

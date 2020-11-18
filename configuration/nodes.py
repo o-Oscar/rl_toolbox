@@ -122,15 +122,15 @@ class SimpleEnvNode:
 		env = simple_env.SimpleEnv()
 		output_dict['Env'] = env
 
-from environments import cartpole
+from environments import cartpole_old
 
 class CartPoleNode:
 	def __init__ (self, mpi_role):
 		self.mpi_role = mpi_role
 	
 	def run (self, save_path, proc_num, input_dict, output_dict):
-		env = cartpole.CartPoleEnv()
-		env.mode = int(self.data['mode_prop'])
+		env = cartpole_old.CartPoleEnv()
+		#env.mode = int(self.data['mode_prop'])
 		output_dict['Env'] = env
 
 from environments import dog_env

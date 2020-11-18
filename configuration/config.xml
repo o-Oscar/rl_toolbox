@@ -1,16 +1,19 @@
 <?xml version="1.0" ?>
 <TrainingRun>
 	<Processes>
-		<Process adr_prob_prop="0.0" epoch_nb_prop="2000" log_std_prop="-3.0" model_save_interval_prop="10" name="Train (PPO)" rollout_len_prop="400" rollout_nb_prop="4" tensorboard_name_prop="expert" train_step_nb_prop="6" type="TrainPPONode"/>
-		<Process activation_prop="relu" first_size_prop="512" name="Simple Actor" save_name_prop="expert" secound_size_prop="256" type="SimpleActorNode"/>
-		<Process base_rot_rew_prop="1" carthesian_act_prop="1" full_parkour_prop="1" mode_prop="0" name="Dog Env" rand_delta_prop="0" simple_walk_prop="0" type="DogEnvNode"/>
-		<Process model_path_prop="results/baseline/models/expert" name="Load Actor" type="LoadActorNode"/>
+		<Process adr_prob_prop="0.5" epoch_nb_prop="5000" log_std_prop="-4.0" model_save_interval_prop="10" name="Train (PPO)" rollout_len_prop="400" rollout_nb_prop="8" tensorboard_name_prop="expert" train_step_nb_prop="6" type="TrainPPONode"/>
+		<Process name="Cart Pole Env" type="CartPoleNode"/>
+		<Process name="LSTM Actor" save_name_prop="expert" type="LSTMActorNode"/>
+		<Process model_path_prop="results/pendulum_source_lstm/models/expert" name="Load Critic" type="LoadCriticNode"/>
+		<Process model_path_prop="results/pendulum_source_lstm/models/expert" name="Load Actor" type="LoadActorNode"/>
 	</Processes>
 	<Links>
-		<Link from_node="Dog Env" from_socket="Env" to_node="Train (PPO)" to_socket="Environment"/>
-		<Link from_node="Dog Env" from_socket="Env" to_node="Simple Actor" to_socket="Env"/>
-		<Link from_node="Simple Actor" from_socket="Actor" to_node="Load Actor" to_socket="Actor"/>
+		<Link from_node="Cart Pole Env" from_socket="Env" to_node="Train (PPO)" to_socket="Environment"/>
+		<Link from_node="Cart Pole Env" from_socket="Env" to_node="LSTM Actor" to_socket="Env"/>
+		<Link from_node="LSTM Actor" from_socket="Actor" to_node="Load Actor" to_socket="Actor"/>
 		<Link from_node="Load Actor" from_socket="Actor" to_node="Train (PPO)" to_socket="Actor"/>
+		<Link from_node="Load Critic" from_socket="Critic" to_node="Train (PPO)" to_socket="Critic"/>
+		<Link from_node="Cart Pole Env" from_socket="Env" to_node="Load Critic" to_socket="Env"/>
 	</Links>
 	<!--Generated from blender-->
 </TrainingRun>

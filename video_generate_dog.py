@@ -23,8 +23,8 @@ if __name__ == '__main__':
 	env = DogEnv(debug=debug, render=render)
 
 
-	#path = "results\\baseline\\models\\expert\\{}"
-	path = "results\\exp_0\\models\\expert\\{}"
+	path = "results\\baseline\\models\\expert\\{}"
+	#path = "results\\exp_0\\models\\expert\\{}"
 	
 	if actor_type=="mix":
 		primitives = [SimpleActor(env) for i in range(2)]
