@@ -47,7 +47,11 @@ class Simulator():
 		# --- Loading the meshes ---
 		urdf_path = str(Path(__file__).parent) + "/urdf"
 		self.groundId = p.loadURDF(urdf_path + "/plane_001/plane.urdf", physicsClientId=self.pcId)
-		self.robotId = p.loadURDF(urdf_path + "/robot_001/robot.urdf", [0,0,1], physicsClientId=self.pcId)
+		#self.robotId = p.loadURDF(urdf_path + "/robot_001/robot.urdf", [0,0,1], physicsClientId=self.pcId)
+		self.robotId = p.loadURDF(urdf_path + "/robot_002/robot.urdf", [0,0,1], physicsClientId=self.pcId)
+		
+		#self.urdf_joint_indexes = [0,1,2,3,4,5,6,7,8,9,10,11]
+		self.urdf_joint_indexes = [2,4,8,13,15,19,24,26,30,35,37,41]
 		
 		p.setGravity(0, 0, -9.81, physicsClientId=self.pcId)
 		p.setPhysicsEngineParameter(fixedTimeStep=self.timeStep, physicsClientId=self.pcId)
@@ -59,7 +63,8 @@ class Simulator():
 		
 		friction = 0.5
 		for i in range(12):
-			p.changeDynamics(self.robotId, i, lateralFriction=friction, physicsClientId=self.pcId)
+			urdf_joint_id = self.urdf_joint_indexes[i]
+			p.changeDynamics(self.robotId, urdf_joint_id, lateralFriction=friction, physicsClientId=self.pcId)
 		p.changeDynamics(self.groundId, -1, lateralFriction=friction, physicsClientId=self.pcId)
 		
 	def set_epoch (self, ep):
@@ -115,7 +120,8 @@ class Simulator():
 		for i in range(12):
 			self.state.joint_target[i] = self.state.joint_target[i]*(1-self.lowpass_joint_alpha) + joint_target[i]*self.lowpass_joint_alpha
 			true_target = self.state.joint_target[i] + self.state.joint_offset[i]
-			p.setJointMotorControl2(self.robotId, i, p.POSITION_CONTROL, targetPosition=true_target, force=10, maxVelocity=20, physicsClientId=self.pcId)
+			urdf_joint_id = self.urdf_joint_indexes[i]
+			p.setJointMotorControl2(self.robotId, urdf_joint_id, p.POSITION_CONTROL, targetPosition=true_target, force=20, maxVelocity=20, physicsClientId=self.pcId)
 	
 	def update_state (self, action):
 		# experimental
@@ -136,8 +142,9 @@ class Simulator():
 		self.state.base_rot_speed = list(self.state.base_rot_speed)
 		
 		# --- joint pos and speed ---
-		for i in range(p.getNumJoints(self.robotId, physicsClientId=self.pcId)):
-			data = p.getJointState(self.robotId, i, physicsClientId=self.pcId)
+		for i in range(12):
+			urdf_joint_id = self.urdf_joint_indexes[i]
+			data = p.getJointState(self.robotId, urdf_joint_id, physicsClientId=self.pcId)
 			self.state.joint_rot[i] = data[0] - self.state.joint_offset[i]
 			self.state.joint_rot_speed[i] = data[1]
 			self.state.joint_torque[i] = data[3]
@@ -151,7 +158,7 @@ class Simulator():
 			self.state.base_clearance = dist
 		
 		# --- foot clearances ---
-		all_foot_id = [2, 5, 8, 11]#[1, 2, 4, 5, 7, 8, 10, 11]
+		all_foot_id = [9, 20, 31, 42]#[1, 2, 4, 5, 7, 8, 10, 11]
 		for i, link_index in enumerate(all_foot_id):
 			all_contact_point = p.getClosestPoints(self.robotId, self.groundId, 100, linkIndexA=link_index, physicsClientId=self.pcId)
 			if len(all_contact_point) == 0:
@@ -209,7 +216,8 @@ class Simulator():
 			self.state.joint_rot[i] = legs_angle[i]
 			self.state.joint_target[i] = legs_angle[i]
 			self.state.mean_joint_rot[i] = legs_angle[i]
-			p.resetJointState(self.robotId, i, legs_angle[i], 0, physicsClientId=self.pcId)
+			urdf_joint_id = self.urdf_joint_indexes[i]
+			p.resetJointState(self.robotId, urdf_joint_id, legs_angle[i], 0, physicsClientId=self.pcId)
 		
 		act_clear = self.get_clearance ()
 		h = des_clear-act_clear+h0
@@ -226,9 +234,12 @@ class Simulator():
 		friction = 2 # np.random.random() * 2 # default 0.5
 		restitution = 0. # np.random.random()* 0.4 # default 0
 		
+		# change the loop count based on link number on the dog
+		"""
 		for i in range(12):
 			#print(p.getDynamicsInfo(self.robotId, i, physicsClientId=self.pcId))
 			p.changeDynamics(self.robotId, i, lateralFriction=np.random.random()*friction, physicsClientId=self.pcId, restitution=restitution)
+		"""
 		p.changeDynamics(self.groundId, -1, lateralFriction=friction, physicsClientId=self.pcId, restitution=0.9)
 			
 			
@@ -236,7 +247,9 @@ class Simulator():
 		
 	def get_clearance (self):
 		to_return = 100
-		all_foot_id = [1, 2, 4, 5, 7, 8, 10, 11]
+		# todo
+		#all_foot_id = [1, 2, 4, 5, 7, 8, 10, 11]
+		all_foot_id = list(range(p.getNumJoints(self.robotId, physicsClientId=self.pcId)))
 		for i, link_index in enumerate(all_foot_id):
 			all_contact_point = p.getClosestPoints(self.robotId, self.groundId, 100, linkIndexA=link_index, physicsClientId=self.pcId)
 			if len(all_contact_point) > 0:

@@ -20,7 +20,7 @@ def get_A (is_act, state_Id=-1):
 							[0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
 							[0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0],
 							[0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]])
-							
+	"""
 	if state_Id == config.JOINT_POS or state_Id == config.JOINT_POS_RAND or state_Id == config.JOINT_VEL or state_Id == config.JOINT_VEL_RAND:
 		return np.asarray([[0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0],
 							[0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
@@ -33,6 +33,20 @@ def get_A (is_act, state_Id=-1):
 							[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
 							[0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0],
 							[0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
+							[0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]])
+	"""
+	if state_Id == config.JOINT_POS or state_Id == config.JOINT_POS_RAND or state_Id == config.JOINT_VEL or state_Id == config.JOINT_VEL_RAND:
+		return np.asarray([[0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0],
+							[0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0],
+							[0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+							[-1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+							[0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+							[0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+							[0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0],
+							[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0],
+							[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+							[0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0],
+							[0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0],
 							[0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]])
 	elif state_Id == config.LOCAL_UP or state_Id == config.LOCAL_UP_RAND:
 		return np.diag([1, -1, 1])
@@ -114,7 +128,7 @@ for i in range(config.obs_transition_len):
 	for A, B in zip(all_trans_A, all_trans_B):
 		b = a + A.shape[0]
 		obs_A[a:b,a:b] = A
-		obs_B[a:b] = B
+		#obs_B[a:b] = B
 		a = b
 		
 

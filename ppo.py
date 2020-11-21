@@ -156,7 +156,7 @@ class PPO:
 					tf.summary.scalar('discounted_rewards', tf.reduce_mean(tf.multiply(old_value + advantage, mask))/tf.reduce_mean(mask), n_step)
 					tf.summary.scalar('mean_rew', tf.reduce_mean(tf.multiply(reward, mask))/tf.reduce_mean(mask), n_step)
 					#tf.summary.scalar('entropy_loss', entropy_loss, n_step)
-					tf.summary.scalar('neg_loss', tf.reduce_sum(self.logstd), n_step)
+					tf.summary.scalar('log_std', tf.reduce_mean(self.logstd), n_step)
 		
 		
 		return loss

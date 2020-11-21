@@ -169,7 +169,8 @@ class DogEnv():
 		
 		self.kin.carthesian_act = self.carthesian_act
 		if self.carthesian_act:
-			target_pose = np.asarray([0.5, 0.5, 0.3] * 4)
+			#target_pose = np.asarray([0., 0., 0.3] * 4)
+			target_pose = np.asarray([0.5, 0.5, 0.3]*4)
 		else:
 			target_pose = np.asarray([0.5, 0.8, 0.3]*4)
 		
@@ -179,9 +180,9 @@ class DogEnv():
 		des_clear = 0#0.05 * np.random.random()
 		frame = int(np.random.random()*self.reset_motion.shape[0])
 		#act = self.reset_motion[frame]
-		act = target_pose# + np.random.normal(size=(12,))*0.1
-		legs_angle = self.kin.calc_joint_target (act)
+		act = target_pose + np.random.normal(size=(12,))*0.1
 		#legs_angle = self.kin.calc_joint_target (act)
+		legs_angle = np.asarray(self.kin.calc_joint_target (act))
 		self.sim.reset(des_v, des_clear, legs_angle)
 		
 		self.state.target_pose = target_pose

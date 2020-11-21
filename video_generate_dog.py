@@ -23,8 +23,8 @@ if __name__ == '__main__':
 	env = DogEnv(debug=debug, render=render)
 
 
-	path = "results\\baseline\\models\\expert\\{}"
-	#path = "results\\exp_0\\models\\expert\\{}"
+	#path = "results\\baseline\\models\\expert\\{}"
+	path = "results\\exp_2\\models\\expert\\{}"
 	
 	if actor_type=="mix":
 		primitives = [SimpleActor(env) for i in range(2)]
@@ -77,7 +77,7 @@ if __name__ == '__main__':
 	env.state.target_speed =  np.asarray([1, 0])*1
 	env.state.target_rot_speed = 0
 	
-	for i in range(1000):
+	for i in range(100):
 		events = p.getKeyboardEvents()
 		speed = 1
 		rot = 0
@@ -106,12 +106,13 @@ if __name__ == '__main__':
 		rot = task[(i//30)%len(task)]
 		"""
 		#env.set_cmd(2, rot)
-		env.state.target_speed =  np.asarray([speed, 0])
-		env.state.target_rot_speed = rot#rot
+		#env.state.target_speed =  np.asarray([speed, 0])
+		#env.state.target_rot_speed = rot#rot
 		
 		#print(env.state.base_clearance)
 		#print(env.state.target_rot_speed)
 		
+		obs = env.symetry.state_symetry(obs)
 		obs = np.expand_dims(np.asarray(obs, dtype=np.float32), axis=1)
 		start = time.time()
 		#act, init_state = actor.model((obs, init_state))
@@ -120,8 +121,9 @@ if __name__ == '__main__':
 			all_inf.append(actor.inf_model((obs, init_state))[0].numpy())
 		dur = time.time()-start
 		act = act.numpy()
+		act = env.symetry.action_symetry(act)
 		all_act.append(act)
-		act = act# + np.random.normal(size=12).reshape(act.shape) * np.exp(-3)
+		act = act + np.random.normal(size=12).reshape(act.shape) * np.exp(-3.5)
 		#act = np.asarray([0.0, 1.0408382989215212, -1.968988857605835]*4)
 		#act = np.asarray([0.5, 0.5, 0.3]* 4)
 		obs, rew, done = env.step(act)
@@ -154,13 +156,14 @@ if __name__ == '__main__':
 		plt.plot(np.squeeze(all_inf))
 		plt.show()
 		"""
-	
-	print("rew :", np.mean(all_rew))
-	#print("speed :", np.mean(env.sim.to_plot[8+24]
-	print("speed :", np.mean(all_speed))
-	print("speed :", np.max(all_speed))
-	#print("rew :", np.mean(all_rew2))
-	#print("speed :", np.mean(env2.sim.to_plot[8+24]))
+	if len(all_rew) > 0:
+		print("rew :", np.mean(all_rew))
+		#print("speed :", np.mean(env.sim.to_plot[8+24]
+		print("speed (mean) :", np.mean(all_speed))
+		print("speed (max) :", np.max(all_speed))
+		#print("rew :", np.mean(all_rew2))
+		#print("speed :", np.mean(env2.sim.to_plot[8+24]))
+	print(env.state.joint_rot)
 	"""
 	all_obs = np.asarray(all_obs)[:,0,:]
 	plt.plot(all_obs.mean(axis=0))
@@ -190,4 +193,8 @@ if __name__ == '__main__':
 	if len(env.sim.raw_frames) > 0:
 		with open("results/video/raw.out", "wb") as f:
 			f.write(np.stack(env.sim.raw_frames).tostring())
+	
+	
+	
+	
 	

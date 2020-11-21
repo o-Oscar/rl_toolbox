@@ -22,14 +22,14 @@ if __name__ == '__main__':
 	debug = True
 	render = False
 	load_trained = True
-	actor_type = "lstm"
+	actor_type = "simple"
 	
 	#env = SimpleEnv()
 	env = CartPoleEnv()
 
 	#path = "results\\default\\models\\{}_{}"
 	#path = "results\\good_full\\models\\expert\\{}"
-	path = "results\\exp_0\\models\\expert\\{}"
+	path = "results\\exp_1\\models\\expert\\{}"
 	
 	if actor_type=="mix":
 		primitives = [SimpleActor(env) for i in range(2)]
@@ -57,16 +57,22 @@ if __name__ == '__main__':
 	all_e = []
 	all_inf = []
 	
-	for i in range(400):
+	print(actor.scaler.mean)
+	print(actor.scaler.std)
+	
+	for i in range(2000):
 		"""
 		events = p.getKeyboardEvents()
 		if 113 in events:
 		"""
 		#env.n = 0
-		obs = actor.scaler.scale_obs(obs)
+		#obs = actor.scaler.scale_obs(obs)
 		obs = np.expand_dims(np.asarray(obs, dtype=np.float32), axis=1)
+		all_obs.append(env.symetry.state_symetry(obs))
+		#obs = env.symetry.state_symetry(obs)
 		start = time.time()
 		act, init_state = actor.model((obs, init_state))
+		#act = env.symetry.action_symetry(act)
 		if actor_type=="mix":
 			all_inf.append(actor.inf_model((obs, init_state))[0].numpy())
 		dur = time.time()-start
@@ -80,7 +86,6 @@ if __name__ == '__main__':
 		obs, rew, done = env.step(act)
 		all_states.append(env.state)
 		#all_e.append(env.e)
-		all_obs.append(obs)
 		all_rew.append(rew[0])
 		all_done.append(done)
 		#print(rew)

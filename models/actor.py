@@ -5,41 +5,58 @@ from tensorflow.keras import layers
 
 class ObsScaler:
 	def __init__ (self, env):
-		self.mean = np.zeros(shape=(env.obs_dim,))
-		self.std = np.ones(shape=(env.obs_dim,)) * 0.001
+		self.mean = np.ones(shape=(env.obs_dim,)) * 0.
+		self.std = np.ones(shape=(env.obs_dim,)) * 1.
+		self.is_init = False
 		
 		self.lamb = 0.99
 	
 	def update (self, obs):
-		"""
-		M = obs.max(axis=(0, 1))
-		m = obs.min(axis=(0, 1))
-		mean_hat = (M+m)/2 #np.mean(obs, axis=(0, 1))
-		std_hat = M-m #np.std(obs, axis=(0, 1))
+		
+		#M = obs.max(axis=(0, 1))
+		#m = obs.min(axis=(0, 1))
+		#mean_hat = (M+m)/2 #np.mean(obs, axis=(0, 1))
+		#std_hat = M-m #np.std(obs, axis=(0, 1))
+		mean_hat = np.mean(obs, axis=(0, 1))
+		std_hat = np.std(obs, axis=(0, 1))
+		
 		
 		mean_lamb = self.lamb
 		std_lamb = self.lamb
 		
-		#self.mean = mean_lamb * self.mean + (1-mean_lamb) * mean_hat
-		#self.std = std_lamb * self.std + (1-std_lamb) * std_hat
+		self.mean = mean_lamb * self.mean + (1-mean_lamb) * mean_hat
+		self.std = std_lamb * self.std + (1-std_lamb) * std_hat
+		self.is_init = True
 		
 		#self.std = np.maximum(self.std, std_hat)
 		"""
-		cur_M = self.mean+self.std
-		cur_m = self.mean-self.std
-		
-		M = obs.max(axis=(0, 1))
-		m = obs.min(axis=(0, 1))
-		
-		new_M = np.maximum(M, cur_M)
-		new_m = np.minimum(m, cur_m)
-		
-		self.mean = (new_M+new_m)/2
-		self.std = (new_M-new_m)/2
-		
+		if self.is_init:
+			cur_M = self.mean+self.std
+			cur_m = self.mean-self.std
+			
+			M = obs.max(axis=(0, 1))
+			m = obs.min(axis=(0, 1))
+			
+			new_M = np.maximum(M, cur_M)
+			new_m = np.minimum(m, cur_m)
+			
+			self.mean = (new_M+new_m)/2
+			self.std = (new_M-new_m)/2
+		else:
+			self.is_init = True
+			
+			M = obs.max(axis=(0, 1))
+			m = obs.min(axis=(0, 1))
+			
+			self.mean = (M+m)/2
+			self.std = (M-m)/2
+		"""
 		
 	def scale_obs (self, obs):
-		return ((obs - self.mean)/(self.std + 1e-7)).astype(np.float32)
+		if self.is_init:
+			return ((obs - self.mean)/(self.std + 1e-7)).astype(np.float32)
+		else:
+			return (np.asarray(obs)).astype(np.float32)
 	
 	def save (self, path):
 		np.save(path.format("scaler_mean") + ".npy", self.mean)
@@ -48,11 +65,14 @@ class ObsScaler:
 	def load (self, path):
 		self.mean = np.load (path.format("scaler_mean") + ".npy")
 		self.std = np.load (path.format("scaler_std") + ".npy")
-	
+		self.is_init = True
+		#print("scaler not loaded", flush=True)
+		
 	def get_weights (self):
 		return (self.mean, self.std)
 	
 	def set_weights (self, data):
+		self.is_init = True
 		self.mean, self.std = data
 
 class BaseActor ():

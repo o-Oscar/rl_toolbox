@@ -3,6 +3,7 @@ import numpy as np
 from scipy.integrate import odeint
 
 from .adr import Adr
+from .symetry import Symetry
 
 clamp = lambda x, minx, maxx: max(min(maxx, x), minx)
 
@@ -57,7 +58,12 @@ class CartPoleEnv():
 
 	def __init__(self, has_delay=False, is_random=False):
 		
-		self.obs_dim = 9
+		self.symetry = Symetry()
+		
+		self.stack_len = 1
+		self.stack = []
+		
+		self.obs_dim = 9 * self.stack_len
 		self.act_dim = 1
 		self.num_envs = 1
 		
@@ -68,11 +74,11 @@ class CartPoleEnv():
 		self.mrsJ = self.mrgsJ/self.gravity
 		
 		self.x_total_max = 0.3
-		self.v_max = 0.3#0.3
+		self.v_max = 1 # 0.3
 		self.acc_tau = 0.003
 		
-		self.has_delay = False # has_delay
-		self.delay = 0.0075 # 0.0075
+		self.has_delay = True # has_delay		
+		self.delay = 0.005 # 0.0075
 		
 		#only for rendering purpuses
 		self.length = 0.1
@@ -108,6 +114,7 @@ class CartPoleEnv():
 		self.adr.add_param("x_max", 0, self.x_total_max/100, self.x_total_max)
 		self.adr.add_param("v_min", 0, -self.v_max/100, -self.v_max)
 		self.adr.add_param("v_max", 0, self.v_max/100, self.v_max)
+		self.adr.add_param("e_max", 0, 1/100, 1)
 		
 		
 	def dysdt (self, y, t, delta_v):
@@ -128,7 +135,7 @@ class CartPoleEnv():
 		last_mes_a = np.round(a/(2*np.pi)*1200)*(2*np.pi)/1200
 		
 		if self.has_delay:
-			delay = self.delay
+			delay = self.delay # max 0.03
 			x, v, a, w = self.calc_next(x, v, a, w, self.v_targ, delay)
 		else:
 			delay = 0
@@ -154,12 +161,13 @@ class CartPoleEnv():
 		reward = 0
 		reward -= np.square(e-1) * 0.5
 		reward -= (1-np.square(np.cos(a/2))) * 0.5
+		reward += min(self.x_total_max-np.abs(x)-0.1, 0) * 5
 		
 		self.done = self.done or e > self.max_usable_e
 		self.done = self.done or abs(x) > self.x_total_max
 		
 		if self.done:
-			reward -= 2
+			reward = -2
 		
 		if self.test_adr:
 			if not self.done and np.cos(a) > 1-0.1:
@@ -183,6 +191,7 @@ class CartPoleEnv():
 		self.mrsJ = self.mrgsJ/self.gravity
 		
 		# --- setting the total energy ---
+		"""
 		r = np.random.random()
 		if r < 0.1: 
 			e = 1
@@ -191,6 +200,11 @@ class CartPoleEnv():
 		
 		if zero:
 			e = 0
+		"""
+		e = self.adr.value("e_max")*np.random.random()
+		if self.adr.is_test_param("e_max"):
+			e = self.adr.value("e_max")
+			
 		
 		epot = min(e, 1)*np.random.random() # Setting the potential energy
 		a = np.arccos(2*epot-1) # Deduce the angle
@@ -207,9 +221,6 @@ class CartPoleEnv():
 		# --- new initialisation ---
 		x = np.random.uniform(self.adr.value("x_min"), self.adr.value("x_max"))
 		v = np.random.uniform(self.adr.value("v_min"), self.adr.value("v_max"))
-		a = np.pi
-		w = 0
-		e = 0
 		
 		if self.adr.is_test_param("x_min"):
 			x = self.adr.value("x_min")
@@ -227,6 +238,7 @@ class CartPoleEnv():
 		
 		self.done = False
 		
+		self.stack = []
 		return self.calc_obs(x, v, a, w, e)
 	
 	def calc_e (self, x, v, a, w):
@@ -236,7 +248,7 @@ class CartPoleEnv():
 		return (x-box.low)/(box.high-box.low)
 	
 	def calc_true_obs (self, x, v, a, w, e):
-		return [x, v, np.cos(a), np.sin(a), np.sin(clamp(a, -0.1, 0.1)), w, clamp(w, -1, 1), e, clamp(e, 0.95, 1.05)]
+		return [x, v, np.cos(a), np.sin(a), clamp(np.sin(a), -0.1, 0.1), w, clamp(w, -1, 1), e, clamp(e, 0.95, 1.05)]
 	
 	def calc_approx_obs (self, x, v, a, w):
 		x += np.random.uniform(-1, 1) * self.delta_x
@@ -256,7 +268,14 @@ class CartPoleEnv():
 			obs = self.calc_approx_obs(x, v, a, w) + self.calc_true_obs(x, v, a, w, e) + [self.n]
 			return self.scale(np.array(obs), self.obs_rescale)
 		"""
-		return [(np.array(self.calc_true_obs(x, v, a, w, e))-self.observation_low)/(self.observation_high-self.observation_low)]
+		if len(self.stack) == 0:
+			for i in range(self.stack_len):
+				self.stack.append((np.array(self.calc_true_obs(x, v, a, w, e))-self.observation_low)/(self.observation_high-self.observation_low))
+		
+		self.stack.append((np.array(self.calc_true_obs(x, v, a, w, e))-self.observation_low)/(self.observation_high-self.observation_low))
+		self.stack = self.stack[-self.stack_len:]
+		
+		return [np.concatenate(self.stack, axis=-1)*2-1]
 		
 		
 	def close(self):
