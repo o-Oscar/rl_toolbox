@@ -9,9 +9,9 @@ import time
 
 #from environments.dog_env import DogEnv
 from environments.simple_env import SimpleEnv
-from environments.cartpole import CartPoleEnv
+from environments.cartpole_old import CartPoleEnv
 
-from models.actor import Actor
+from models.actor import SimpleActor, MixtureOfExpert, LSTMActor
 
 #import blindfold
 
@@ -22,19 +22,29 @@ if __name__ == '__main__':
 	debug = True
 	render = False
 	load_trained = True
+	actor_type = "simple"
 	
 	#env = SimpleEnv()
 	env = CartPoleEnv()
 
 	#path = "results\\default\\models\\{}_{}"
-	path = "results\\exp_0\\models\\{}_{}"
+	#path = "results\\good_full\\models\\expert\\{}"
+	path = "results\\exp_1\\models\\expert\\{}"
 	
-	actor = Actor(env)
+	if actor_type=="mix":
+		primitives = [SimpleActor(env) for i in range(2)]
+		actor = MixtureOfExpert(env, primitives, debug=True)
+	elif actor_type == "simple":
+		actor = SimpleActor(env)
+	elif actor_type == "lstm":
+		actor = LSTMActor(env)
+	
+	
 	if load_trained:
-		actor.load_primitive(path)
-		actor.load_influence(path)
+		actor.load(path)
 	
-	obs = env.reset(zero=False, c_mode=0)
+	env.test_adr = True
+	obs = env.reset()
 	init_state = actor.get_init_state(env.num_envs)
 	
 	all_rew = []
@@ -45,59 +55,57 @@ if __name__ == '__main__':
 	all_act = []
 	all_states = []
 	all_e = []
+	all_inf = []
 	
-	for i in range(300):
+	print(actor.scaler.mean)
+	print(actor.scaler.std)
+	
+	for i in range(2000):
 		"""
 		events = p.getKeyboardEvents()
-		speed = 1
-		rot = 0
 		if 113 in events:
-			rot += 1
-		if 100 in events:
-			rot -= 1
-		if 115 in events:
-			speed -=1
-		if 122 in events:
-			speed +=1
 		"""
-		"""
-		if speed == 0:
-			rot = 0
-		"""
-		"""
-		speed = 0
-		rot = 0
-		"""
-		env.n = 0
+		#env.n = 0
+		#obs = actor.scaler.scale_obs(obs)
 		obs = np.expand_dims(np.asarray(obs, dtype=np.float32), axis=1)
+		all_obs.append(env.symetry.state_symetry(obs))
+		#obs = env.symetry.state_symetry(obs)
 		start = time.time()
 		act, init_state = actor.model((obs, init_state))
+		#act = env.symetry.action_symetry(act)
+		if actor_type=="mix":
+			all_inf.append(actor.inf_model((obs, init_state))[0].numpy())
 		dur = time.time()-start
 		act = act.numpy()# * 0 + 0#[0.1, 0.1]
 		#print(act)
 		all_act.append(act)
-		act = act# + np.random.normal(size=act.flatten().shape[0]).reshape(act.shape) * np.exp(-3)
+		act = act # + np.random.normal(size=act.flatten().shape[0]).reshape(act.shape) * np.exp(-3)
 		#act = act*0 + 0.5 + 0.3/2 * (2*((i//50)%2)-1)
 		#act = np.asarray([0.0, 1.0408382989215212, -1.968988857605835]*4)
 		#act = np.asarray([0.5, 0.5, 0.3]* 4)
 		obs, rew, done = env.step(act)
 		all_states.append(env.state)
-		all_e.append(env.e)
-		all_obs.append(obs)
+		#all_e.append(env.e)
 		all_rew.append(rew[0])
 		all_done.append(done)
 		#print(rew)
 	
+	print(np.mean(all_rew))
+	print(env.adr.success)
 	
 	for i, obs in enumerate(np.asarray(all_obs).reshape((-1, env.obs_dim)).T):
 		plt.plot(obs, label=str(i))
 	plt.legend()
 	plt.show()
 	
-	print(np.any(all_done))
+	if actor_type=="mix":
+		plt.plot(np.squeeze(all_inf))
+		plt.show()
+		
+	#print(np.any(all_done))
 	for i in range(4):
 		plt.plot([s[i] for s in all_states])
-	plt.plot(all_e)
+	#plt.plot(all_e)
 	plt.show()
 	plt.plot(np.asarray(all_act).reshape((-1, env.act_dim)))
 	plt.show()

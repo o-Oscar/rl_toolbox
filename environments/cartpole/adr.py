@@ -1,8 +1,6 @@
 import numpy as np
 from pathlib import Path
 
-import config
-
 
 class Adr:
 	def __init__ (self):
@@ -13,11 +11,11 @@ class Adr:
 		self.logger = {}
 		self.tested_param = ""
 		
-		self.success_thresh = config.training["adr_sucess_threshold"]
-		self.failure_thresh = config.training["adr_failure_threshold"]
 		self.sum_rew = 0
 		self.n_rew = 0
 		self.premature_end = False
+		self.success = False
+		self.failure = False
 	
 	def add_param(self, name, start_value, delta, bound):
 		if name in self.all_values.keys():
@@ -38,29 +36,31 @@ class Adr:
 		
 	def is_test_param (self, name):
 		return name == self.tested_param
-	
+	"""
 	def step(self, rew, done):
 		self.sum_rew += rew
 		self.n_rew += 1
 		self.premature_end = self.premature_end or done
+	"""
+	def step (self, success, failure):
+		self.success = success
+		self.failure = failure
 	
 	def reset (self):
-		if config.training["use_adr"]:
-			
-			if self.tested_param != "":
-				self.all_values[self.tested_param] = self.updated_tested_value()
-			
-			self.sum_rew = 0
-			self.n_rew = 0
-			self.premature_end = False
-			
-			if np.random.random() < 1:
-				self.set_test_param ()
-			else:
-				self.tested_param = ""
-			
-			self.log()
-	
+		if self.tested_param != "":
+			self.all_values[self.tested_param] = self.updated_tested_value()
+		
+		self.sum_rew = 0
+		self.n_rew = 0
+		self.premature_end = False
+		
+		if np.random.random() < 1:
+			self.set_test_param ()
+		else:
+			self.tested_param = ""
+		
+		self.log()
+	"""
 	def updated_tested_value (self):
 		value = self.all_values[self.tested_param]
 		
@@ -77,7 +77,23 @@ class Adr:
 				value = self.all_min[self.tested_param]
 		
 		return value
+	"""
+	def updated_tested_value (self):
+		value = self.all_values[self.tested_param]
 		
+		if self.success:
+			value += self.all_deltas[self.tested_param]
+			print("success !!", flush=True)
+		elif self.failure:
+			value -= self.all_deltas[self.tested_param]
+		
+		if value > self.all_max[self.tested_param]:
+			value = self.all_max[self.tested_param]
+		if value < self.all_min[self.tested_param]:
+			value = self.all_min[self.tested_param]
+		
+		return value
+	
 	
 	def set_test_param (self):
 		keys = list(self.all_values.keys())

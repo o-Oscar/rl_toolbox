@@ -9,8 +9,6 @@ from scipy.integrate import odeint
 
 clamp = lambda x, minx, maxx: max(min(maxx, x), minx)
 
-import config
-
 # ------------------------------ OBSERVATION CONFIG ------------------------------
 
 """
@@ -39,9 +37,7 @@ class CartPoleEnv():
 		self.obs_stack = []
 		
 		# --- env info ---
-		self.obs_dim = 11 * self.obs_stack_len
-		if config.training['use_blindfold']:
-			self.obs_dim *= 2
+		self.obs_dim = 11 * self.obs_stack_len * 2
 		self.act_dim = 1
 		self.num_envs = 1
 		self.adr = Adr()
@@ -90,10 +86,7 @@ class CartPoleEnv():
 		self.min_e_clamp = 0.95
 		self.max_e_clamp = 1.05
 		
-		if config.training['use_blindfold']:
-			blind = 2
-		else:
-			blind = 1
+		blind = 2
 		self.observation_low = np.array(([
 			-self.x_total_max, -self.v_max,
 			-1, -1, -self.sin_clamp,
@@ -105,6 +98,13 @@ class CartPoleEnv():
 			np.sqrt(self.max_usable_e*4*self.mrgsJ), 1,
 			self.max_usable_e, self.max_e_clamp] + [1] + [1])*blind)
 
+		# 0 : swing up
+		# 1 : stabilize
+		self.mode = 0 # 1 if np.random.random() > c_mode else 0
+		self.test_adr = False
+		self.adr_rollout_len = 300
+		self.has_reached_top = False
+		self.has_fallen = False
 
 	def dysdt (self, y, t, delta_v):
 		a, w = y
@@ -179,7 +179,12 @@ class CartPoleEnv():
 		if self.done:
 			reward -= 1
 		
-		self.adr.step(reward, self.done)
+		self.has_reached_top = self.has_reached_top or np.cos(a) > 1-0.25
+		self.has_fallen = self.has_fallen or (self.has_reached_top and np.cos(a) < 1-0.5)
+		self.step_nb_on_top += 1 if self.has_reached_top and not self.has_fallen else 0
+		success = (not self.done) and (not self.has_fallen) and self.step_nb_on_top > 50
+		failure = self.done# or self.has_fallen
+		self.adr.step(success, not success)
 		
 		#self.stack_obs(x, v, cur_mes_a, mes_w, e)
 		mes_x = x
@@ -196,14 +201,15 @@ class CartPoleEnv():
 			to_return = self.adr.value(name_min)
 		return to_return
 	
-	def reset(self, zero=False, c_mode=0.5):
-		
-		# 0 : swing up
-		# 1 : stabilize
-		self.mode = 0 # 1 if np.random.random() > c_mode else 0
+	def reset(self, zero=False):
 		
 		self.adr.reset()
-	
+		self.has_reached_top = False
+		self.has_fallen = False
+		self.step_nb_on_top = 0
+		
+		zero = zero or self.test_adr
+		
 		self.mrgsJ = self.get_adr_param("min_mrgsJ", "max_mrgsJ")
 		self.mrsJ = self.mrgsJ/self.gravity
 		
@@ -284,11 +290,7 @@ class CartPoleEnv():
 		return self.calc_true_obs (x, v, a, w, self.calc_e(x, v, a, w))
 		
 	def stack_obs (self, x, v, a, w, e, mes_x, mes_v, mes_a, mes_w, mes_e):
-		if config.training['use_blindfold']:
-			self.obs_stack.append((np.array(self.calc_true_obs(x, v, a, w, e) + self.calc_true_obs(mes_x, mes_v, mes_a, mes_w, mes_e))-self.observation_low)*2/(self.observation_high-self.observation_low) - 1)
-			#self.obs_stack.append((np.array(self.calc_true_obs(x, v, a, w, e) * 2)-self.observation_low)*2/(self.observation_high-self.observation_low) - 1)
-		else:
-			self.obs_stack.append((np.array(self.calc_true_obs(x, v, a, w, e))-self.observation_low)*2/(self.observation_high-self.observation_low) - 1)
+		self.obs_stack.append((np.array(self.calc_true_obs(x, v, a, w, e) + self.calc_true_obs(mes_x, mes_v, mes_a, mes_w, mes_e))-self.observation_low)*2/(self.observation_high-self.observation_low) - 1)
 		
 	def calc_obs (self, x, v, a, w, e, true_obs=False):
 		while len(self.obs_stack) > self.obs_stack_len:

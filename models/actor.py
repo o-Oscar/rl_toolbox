@@ -3,206 +3,302 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers
 
-import config
-
-
-
-class SimpleActor ():
+class ObsScaler:
 	def __init__ (self, env):
+		self.mean = np.ones(shape=(env.obs_dim,)) * 0.
+		self.std = np.ones(shape=(env.obs_dim,)) * 1.
+		self.is_init = False
+		
+		self.lamb = 0.99
+	
+	def update (self, obs):
+		
+		#M = obs.max(axis=(0, 1))
+		#m = obs.min(axis=(0, 1))
+		#mean_hat = (M+m)/2 #np.mean(obs, axis=(0, 1))
+		#std_hat = M-m #np.std(obs, axis=(0, 1))
+		mean_hat = np.mean(obs, axis=(0, 1))
+		std_hat = np.std(obs, axis=(0, 1))
+		
+		
+		mean_lamb = self.lamb
+		std_lamb = self.lamb
+		
+		self.mean = mean_lamb * self.mean + (1-mean_lamb) * mean_hat
+		self.std = std_lamb * self.std + (1-std_lamb) * std_hat
+		self.is_init = True
+		
+		#self.std = np.maximum(self.std, std_hat)
+		"""
+		if self.is_init:
+			cur_M = self.mean+self.std
+			cur_m = self.mean-self.std
+			
+			M = obs.max(axis=(0, 1))
+			m = obs.min(axis=(0, 1))
+			
+			new_M = np.maximum(M, cur_M)
+			new_m = np.minimum(m, cur_m)
+			
+			self.mean = (new_M+new_m)/2
+			self.std = (new_M-new_m)/2
+		else:
+			self.is_init = True
+			
+			M = obs.max(axis=(0, 1))
+			m = obs.min(axis=(0, 1))
+			
+			self.mean = (M+m)/2
+			self.std = (M-m)/2
+		"""
+		
+	def scale_obs (self, obs):
+		if self.is_init:
+			return ((obs - self.mean)/(self.std + 1e-7)).astype(np.float32)
+		else:
+			return (np.asarray(obs)).astype(np.float32)
+	
+	def save (self, path):
+		np.save(path.format("scaler_mean") + ".npy", self.mean)
+		np.save(path.format("scaler_std") + ".npy", self.std)
+	
+	def load (self, path):
+		self.mean = np.load (path.format("scaler_mean") + ".npy")
+		self.std = np.load (path.format("scaler_std") + ".npy")
+		self.is_init = True
+		#print("scaler not loaded", flush=True)
+		
+	def get_weights (self):
+		return (self.mean, self.std)
+	
+	def set_weights (self, data):
+		self.is_init = True
+		self.mean, self.std = data
+
+class BaseActor ():
+	def __init__ (self, env):
+		self.save_path = "will not work"
+		self.scaler = ObsScaler (env)
 		self.act_dim = env.act_dim
 		self.obs_dim = env.obs_dim
-		self.lstm_size = 256
 		
-		self.primitive_nb = 8
+		self.logstd = tf.Variable(np.ones((self.act_dim,))*(-3), dtype=tf.float32, trainable=True)
 		
-		with tf.name_scope("init_actor"):
+	def get_weights (self):
+		return (self.core_model.get_weights(), self.logstd.value(), self.scaler.get_weights())
+		
+	def set_weights (self, data):
+		weights, logstd_value, scaler_data = data
+		self.core_model.set_weights(weights)
+		self.logstd.assign(logstd_value)
+		self.scaler.set_weights(scaler_data)
+		
+	def save (self, path):
+		self.core_model.save_weights(path.format("actor"), overwrite=True)
+		self.scaler.save(path)
+		
+	def load (self, path):
+		self.core_model.load_weights(path.format("actor"))
+		self.scaler.load(path)
+
+class SimpleActor (BaseActor):
+	def __init__ (self, env, first_size=512, secound_size=256, activation='relu'):
+		super().__init__(env)
+		
+		with tf.name_scope("input_process"):
 			input = layers.Input(shape=(None, env.obs_dim))
-			init_state = [layers.Input(shape=(self.lstm_size, )), layers.Input(shape=(self.lstm_size, ))]
-			
 			obs_ph = input
-				
+			
+			# scaling the inputs
 			if hasattr(env, 'obs_mean') and  hasattr(env, 'obs_std'):
 				obs_ph = (obs_ph-env.obs_mean)/env.obs_std
 			else:
 				print("WARNING (actor) : no obs range definded. Proceed with caution")
 				
-			if config.training["use_blindfold"]:
+			# using the optional blindfold
+			if hasattr(env, 'blindfold'):
 				obs_ph = env.blindfold.action_blindfold(obs_ph)
+			else:
+				print("WARNING (actor) : no blindfold used")
 			
-			mean = layers.Dense(512, activation='relu')(obs_ph)
-			mean = layers.Dense(256, activation='relu')(mean)
-			action = layers.Dense(self.act_dim, activation='sigmoid')(mean)
-			self.primitive_model = tf.keras.Model((input, ()), (action, ()), name="primitive")
-			self.influence_model = tf.keras.Model((input, ()), (action, ()), name="influence")
+		with tf.name_scope("core_model"):
+			obs_input = layers.Input(shape=(None, obs_ph.shape[-1]))
 			
-		#self.model = tf.keras.Model((input, init_state), (action, end_state), name="actor")
-		self.model = tf.keras.Model((input, ()), (action, ()), name="actor")
-		#self.model.summary()
+			mean = layers.Dense(first_size, activation=activation)(obs_input)
+			mean = layers.Dense(secound_size, activation=activation)(mean)
+			
+			skip = obs_input
+			
+			last_layer = layers.Dense(self.act_dim, activation='tanh')
+			action = (last_layer(tf.concat((mean, skip), axis=-1))+1)/2
+			
+			self.core_model = tf.keras.Model((obs_input, ()), (action, ()), name="actor_core_model")
+		
+		
+		self.model = tf.keras.Model((input, ()), (self.core_model(obs_ph)[0], ()), name="actor_model")
+		self.core_model.summary()
+		
+		last_layer.set_weights([x/10 for x in last_layer.get_weights()])
 		
 	def get_init_state(self, n_env):
-		init_state_shape = (n_env, self.lstm_size)
-		return (np.zeros(init_state_shape), np.zeros(init_state_shape))
+		#init_state_shape = (n_env, self.lstm_size)
+		return () #(np.zeros(init_state_shape), np.zeros(init_state_shape))
 
-	def save_primitive (self, path):
-		self.primitive_model.save_weights(path.format("actor", "primitive"), overwrite=True)
-	def save_influence(self, path):
-		self.influence_model.save_weights(path.format("actor", "influence"), overwrite=True)
+class MixtureOfExpert (BaseActor):
+	def __init__ (self, env, primitives, debug=False):
+		super().__init__(env)
 		
-	def load_primitive (self, path):
-		self.primitive_model.load_weights(path.format("actor", "primitive"))
-	def load_influence (self, path):
-		self.influence_model.load_weights(path.format("actor", "influence"))
-	
-	def lock_primitive (self):
-		for layer in self.primitive_model.layers:
-			layer.trainable = False
-	
-	def get_weights (self):
-		return self.model.get_weights()
+		self.primitive_nb = len(primitives)
 		
-	def set_weights (self, weights):
-		self.model.set_weights(weights)
-		
-class RnnActor ():
-	def __init__ (self, env):
-		self.act_dim = env.act_dim
-		self.obs_dim = env.obs_dim
-		self.lstm_size = 256
-		
-		self.primitive_nb = 8
-		
-		with tf.name_scope("init_actor"):
+		with tf.name_scope("input_process"):
 			input = layers.Input(shape=(None, env.obs_dim))
-			init_state = [layers.Input(shape=(self.lstm_size, )), layers.Input(shape=(self.lstm_size, ))]
-			
 			obs_ph = input
-				
+			
+			# scaling the inputs
 			if hasattr(env, 'obs_mean') and  hasattr(env, 'obs_std'):
 				obs_ph = (obs_ph-env.obs_mean)/env.obs_std
 			else:
 				print("WARNING (actor) : no obs range definded. Proceed with caution")
 				
-			if config.training["use_blindfold"]:
-				obs_ph = blindfold.actor_blindfold(obs_ph)
+			# using the optional blindfold
+			if hasattr(env, 'blindfold'):
+				obs_ph = env.blindfold.action_blindfold(obs_ph)
+			else:
+				print("WARNING (actor) : no blindfold used")
 			
-			lstm, *end_state = layers.LSTM(self.lstm_size, return_sequences=True, return_state=True)(obs_ph, initial_state=init_state)
+		with tf.name_scope("core_model"):
+			obs_input = layers.Input(shape=(None, obs_ph.shape[-1]))
 			
-			action = layers.Dense(self.act_dim, activation='sigmoid')(lstm)
-			"""
-			self.primitive_model = tf.keras.Model((input, ()), (action, ()), name="primitive")
-			self.influence_model = tf.keras.Model((input, ()), (action, ()), name="influence")
-			"""
-			self.primitive_model = tf.keras.Model((input, init_state), (action, end_state), name="primitive")
-			self.influence_model = tf.keras.Model((input, init_state), (action, end_state), name="influence")
+			# influence
+			influence = layers.Dense(512, activation='relu')(obs_input)
+			influence = layers.Dense(256, activation='relu')(influence)
+			influence = layers.Dense(self.primitive_nb, activation='softmax')(influence)
+			influence = tf.expand_dims(influence, axis=2)
 			
-		self.model = tf.keras.Model((input, init_state), (action, end_state), name="actor")
-		#self.model = tf.keras.Model((input, ()), (action, (action, )), name="actor")
-		#self.model.summary()
+			# primitives
+			self.primitives_cpy = []
+			for i, prim in enumerate(primitives):
+				#prim.name = str(i) + "coucou"
+				self.primitives_cpy.append(tf.keras.Model(inputs=prim.core_model.input, outputs=prim.core_model.output, name='primitive_'+str(i)))
+			
+			for prim in self.primitives_cpy:
+				for layer in prim.layers:
+					layer.trainable = True
+	
+			
+			primitives_actions = [prim(obs_input)[0] for prim in self.primitives_cpy]
+			primitives_actions = tf.stack(primitives_actions, axis=3)
+			
+			# action
+			action = tf.reduce_sum(primitives_actions*influence, axis=3)
+			
+			self.core_model = tf.keras.Model((obs_input, ()), (action, ()), name="actor_core_model")
+			#self.model.summary()
+		
+		
+		self.model = tf.keras.Model((input, ()), (self.core_model(obs_ph)[0], ()), name="actor_model")
+		
+		if debug:
+			core_inf_model = tf.keras.Model((obs_input, ()), (influence, ()), name="core_inf_model")
+			self.inf_model = tf.keras.Model((input, ()), (core_inf_model(obs_ph)[0], ()), name="inf_model")
+		
+	def get_init_state(self, n_env):
+		#init_state_shape = (n_env, self.lstm_size)
+		return () #(np.zeros(init_state_shape), np.zeros(init_state_shape))
+
+class oldLSTMActor (BaseActor):
+	def __init__ (self, env):
+		super().__init__(env)
+		self.lstm_size = 128
+		
+		with tf.name_scope("input_process"):
+			input = layers.Input(shape=(None, env.obs_dim))
+			main_init_state = (layers.Input(shape=(self.lstm_size, )), layers.Input(shape=(self.lstm_size, )))
+			obs_ph = input
+			
+			# scaling the inputs
+			if hasattr(env, 'obs_mean') and  hasattr(env, 'obs_std'):
+				obs_ph = (obs_ph-env.obs_mean)/env.obs_std
+			else:
+				print("WARNING (actor) : no obs range definded. Proceed with caution")
+				
+			# using the optional blindfold
+			if hasattr(env, 'blindfold'):
+				obs_ph = env.blindfold.action_blindfold(obs_ph)
+			else:
+				print("WARNING (actor) : no blindfold used")
+			
+		with tf.name_scope("core_model"):
+			obs_input = layers.Input(shape=(None, obs_ph.shape[-1]))
+			init_state = (layers.Input(shape=(self.lstm_size, )), layers.Input(shape=(self.lstm_size, )))
+			
+			#influence = layers.Dense(512, activation='relu')(obs_input)
+			influence = obs_input
+			lstm, *end_state = layers.LSTM(self.lstm_size, return_sequences=True, return_state=True, activation='relu')(influence, initial_state=init_state)
+			
+			last_layer = layers.Dense(self.act_dim, activation='tanh')
+			action = (last_layer(lstm)+1)/2
+			
+			self.core_model = tf.keras.Model((obs_input, init_state), (action, end_state), name="actor_core_model")
+			self.core_model.summary()
+		
+		
+		self.model = tf.keras.Model((input, main_init_state), self.core_model((obs_ph, main_init_state)), name="actor_model")
+		
+		last_layer.set_weights([x/10 for x in last_layer.get_weights()])
+		
+		#last_layer.set_weights([x/100 for x in last_layer.get_weights()])
 		
 	def get_init_state(self, n_env):
 		init_state_shape = (n_env, self.lstm_size)
 		return (np.zeros(init_state_shape, dtype=np.float32), np.zeros(init_state_shape, dtype=np.float32))
 
-	def save_primitive (self, path):
-		self.primitive_model.save_weights(path.format("actor", "primitive"), overwrite=True)
-	def save_influence(self, path):
-		self.influence_model.save_weights(path.format("actor", "influence"), overwrite=True)
-		
-	def load_primitive (self, path):
-		self.primitive_model.load_weights(path.format("actor", "primitive"))
-	def load_influence (self, path):
-		self.influence_model.load_weights(path.format("actor", "influence"))
-	
-	def lock_primitive (self):
-		for layer in self.primitive_model.layers:
-			layer.trainable = False
-	
-	def get_weights (self):
-		return self.model.get_weights()
-		
-	def set_weights (self, weights):
-		self.model.set_weights(weights)
-
-class MixtureOfExpert ():
+class LSTMActor (BaseActor):
 	def __init__ (self, env):
-		self.act_dim = env.act_dim
-		self.obs_dim = env.obs_dim
-		self.lstm_size = 16
+		super().__init__(env)
+		self.lstm_size = 128
 		
-		self.primitive_nb = 2
-		
-		with tf.name_scope("init_actor"):
+		with tf.name_scope("input_process"):
 			input = layers.Input(shape=(None, env.obs_dim))
-			#init_state = [layers.Input(shape=(self.lstm_size, )), layers.Input(shape=(self.lstm_size, ))]
+			main_init_state = (layers.Input(shape=(self.lstm_size, )), layers.Input(shape=(self.lstm_size, )))
 			obs_ph = input
+			
+			# scaling the inputs
 			if hasattr(env, 'obs_mean') and  hasattr(env, 'obs_std'):
 				obs_ph = (obs_ph-env.obs_mean)/env.obs_std
 			else:
-				print("WARNING : no obs range definded. Proceed with caution")
-			obs_ph = env.blindfold.action_blindfold(obs_ph)
-			
-			all_primitives = []
-			self.all_primitives_models = []
-			
-			with tf.name_scope("primitive"):
-				primitive_com = obs_ph#[:,:,:34]
-				#primitive_com = layers.Dense(256, activation='relu')(primitive_com)
-				for i in range(self.primitive_nb):
-					primitive = layers.Dense(512, activation='relu')(primitive_com)
-					primitive = layers.Dense(256, activation='relu')(primitive)
-					#primitive = layers.Dense(128, activation='relu')(primitive_com)
-					primitive = layers.Dense(self.act_dim, activation='sigmoid')(primitive)
-					
-					self.all_primitives_models.append(tf.keras.Model(input, primitive, name="primitive_i"))
-					
-					all_primitives.append(primitive)
-				all_primitives = tf.stack(all_primitives, axis=3)
-				self.primitive_model = tf.keras.Model((input, ()), (all_primitives, ()), name="primitive")
-				#self.primitive_model.summary()
+				print("WARNING (actor) : no obs range definded. Proceed with caution")
 				
+			# using the optional blindfold
+			if hasattr(env, 'blindfold'):
+				obs_ph = env.blindfold.action_blindfold(obs_ph)
+			else:
+				print("WARNING (actor) : no blindfold used")
 			
-			with tf.name_scope("influence"):
-				influence = obs_ph
-				influence = layers.Dense(256, activation='relu')(influence)
-				influence = layers.Dense(128, activation='relu')(influence)
-				influence = layers.Dense(self.primitive_nb, activation='softmax')(influence)
-				influence = tf.expand_dims(influence, axis=2)
-				self.influence_model = tf.keras.Model((input, ()), (influence, ()), name="influence")
-				#self.influence_model.summary()
+		with tf.name_scope("core_model"):
+			obs_input = layers.Input(shape=(None, obs_ph.shape[-1]))
+			init_state = (layers.Input(shape=(self.lstm_size, )), layers.Input(shape=(self.lstm_size, )))
 			
-			#action = all_primitives[0] # tf.reduce_sum(all_primitives*influence, axis=3)
-			action = tf.reduce_sum(all_primitives*influence, axis=3)
+			skip = obs_input
 			
+			influence = layers.Dense(128, activation='relu')(obs_input)
+			lstm, *end_state = layers.LSTM(self.lstm_size, return_sequences=True, return_state=True)(influence, initial_state=init_state)
+			conc = tf.concat((lstm, skip), axis=-1)
+			conc = lstm
 			
-		self.model = tf.keras.Model((input, ()), (action, ()), name="actor")
-		#self.model.summary()
+			last_layer = layers.Dense(self.act_dim, activation='tanh')
+			action = (last_layer(conc)+1)/2
+			
+			self.core_model = tf.keras.Model((obs_input, init_state), (action, end_state), name="actor_core_model")
+			#self.model.summary()
+		
+		
+		self.model = tf.keras.Model((input, main_init_state), self.core_model((obs_ph, main_init_state)), name="actor_model")
+		
+		last_layer.set_weights([x/10 for x in last_layer.get_weights()])
+		
+		#last_layer.set_weights([x/100 for x in last_layer.get_weights()])
 		
 	def get_init_state(self, n_env):
 		init_state_shape = (n_env, self.lstm_size)
-		return (np.zeros(init_state_shape), np.zeros(init_state_shape))
-
-	def save_primitive (self, path):
-		self.primitive_model.save_weights(path.format("actor", "primitives"), overwrite=True)
-	def save_influence(self, path):
-		self.influence_model.save_weights(path.format("actor", "influence"), overwrite=True)
-		
-	def load_primitive (self, path):
-		self.primitive_model.load_weights(path.format("actor", "primitives"))
-	def load_influence (self, path):
-		self.influence_model.load_weights(path.format("actor", "influence"))
-	def load_specific_primitive (self, path, i):
-		self.all_primitives_models[i].load_weights(path.format("actor", "primitive"))
-	
-	def lock_primitive (self):
-		for layer in self.primitive_model.layers:
-			layer.trainable = False
-		
-	def get_weights (self):
-		return self.model.get_weights()
-		
-	def set_weights (self, weights):
-		self.model.set_weights(weights)
-		
-
-class Actor (SimpleActor): # choose here the type of actor SimpleActor, MixtureOfExpert
-	pass
+		return (np.zeros(init_state_shape, dtype=np.float32), np.zeros(init_state_shape, dtype=np.float32))

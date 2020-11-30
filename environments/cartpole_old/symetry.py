@@ -11,15 +11,13 @@ import tensorflow as tf
 - Clamped Rotation speed (max 0.5 rad.s-2)
 - Total normalised energy (between 0 and 1.5)
 - Clamped total normalised energy (between 0.95 and 1.05)
-- Last action
-- clamped (1-e*10)
 """
 
-act_A = np.diag([-1, -1])
-act_B = np.asarray([1, 1])
+act_A = np.diag([-1])
+act_B = np.asarray([1])
 
-stack_len = 3
-obs_A = np.diag([-1, -1, 1, -1, -1, -1, -1, 1, 1, -1] * stack_len)
+stack_len = 1
+obs_A = np.diag([-1, -1, 1, -1, -1, -1, -1, 1, 1] * stack_len)
 
 class Symetry:
 	def action_symetry (self, input_action):

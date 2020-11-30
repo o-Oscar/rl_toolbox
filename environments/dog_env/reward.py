@@ -1,7 +1,6 @@
 import numpy as np
 import time
 import matplotlib.pyplot as plt
-import pybullet as p
 
 
 class RewardFunc ():
@@ -38,6 +37,8 @@ class SpeedRew(RewardFunc):
 			print("sigma", self.sigma_2)
 			print("a", self.a)
 		"""
+		self.a = 0.5
+		self.sigma_2 = 1
 		self.c1 = 1*np.exp(-1)
 		self.b = 0.5
 	def step (self):
@@ -64,16 +65,18 @@ class PoseRew(RewardFunc):
 	def __init__(self, state):
 		self.state = state
 		#self.target_pose = np.asarray([0.0, 1.0408382989215212, -1.968988857605835]*4)
-		self.target_pose = np.asarray([0.0, 0.9, -2*0.9]*4)
+		#self.target_pose = np.asarray([0.0, 0.9, -2*0.9]*4)
 		self.pose_min = np.asarray([-0.7318217246298173, -0.8606353612620431, -2.492509298518673]*4)
 		self.pose_max = np.asarray([0.7318217246298173, 1.3606960000267483, -0.4816591423398249]*4)
-		
-		self.a = 1
+		self.mask = np.asarray([1, 1, 1] * 4)
+		self.a = 0.5 # 1
 		
 	def step (self):
 		#return -np.sum(np.square(self.target_pose - self.state.mean_joint_rot)/np.square(self.pose_max-self.pose_min)) * self.a
-		a = self.a #* np.exp(-np.sum(np.square(self.state.mean_planar_speed))/0.5)
-		return -np.sum(np.square(self.state.target_pose - self.state.mean_action)) * a
+		a = self.a * np.exp(-np.sum(np.square(self.state.mean_planar_speed))/0.5)
+		#print(self.state.target_pose)
+		#return -np.sum(np.square(self.state.target_pose - self.state.mean_action)) * a
+		return -np.sum(np.square(self.state.target_pose - self.state.mean_action) * self.mask) * a
 	
 	def done (self):
 		return False
@@ -111,6 +114,18 @@ class BaseAccRew(RewardFunc):
 	def done (self):
 		return False
 	
+class BaseRotRew(RewardFunc):
+	def __init__(self, state):
+		self.state = state
+		self.a = 0.1 # 0.05
+		
+	def step (self):
+		
+		fac = self.a
+		return -np.sum(np.square(self.state.base_rot_speed[:2])) * fac
+	
+	def done (self):
+		return False
 class FootClearRew(RewardFunc):
 	def __init__(self, state):
 		self.state = state
@@ -130,4 +145,19 @@ class FootClearRew(RewardFunc):
 	
 	def done (self):
 		return False
+
+
+class BaseClearRew(RewardFunc):
+	def __init__(self, state):
+		self.state = state
+		self.target_rot_speed = 0
+		self.a = 20
+		
+	def step (self):
+		#return -np.square(self.state.base_pos[2]-0.27) * self.a
+		return -np.square(self.state.base_pos[2]-0.338) * self.a
+	
+	def done (self):
+		return False
+	
 	

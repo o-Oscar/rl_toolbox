@@ -1,6 +1,6 @@
 import numpy as np
 import tensorflow as tf
-import config
+
 """- Une observation c'est 
 	- Cart Position (max 0.3 m)
 	- Cart Velocity (max 0.4 m.s-1)
@@ -19,10 +19,8 @@ act_A = np.diag([-1])
 act_B = np.asarray([1])
 
 stack_len = 3
-if config.training['use_blindfold']:
-	obs_A = np.diag([-1, -1, 1, -1, -1, -1, -1, 1, 1, -1, 1] * stack_len * 2)
-else:
-	obs_A = np.diag([-1, -1, 1, -1, -1, -1, -1, 1, 1, -1, 1] * stack_len)
+
+obs_A = np.diag([-1, -1, 1, -1, -1, -1, -1, 1, 1, -1, 1] * stack_len * 2)
 
 class Symetry:
 	def action_symetry (self, input_action):

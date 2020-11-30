@@ -3,21 +3,19 @@
 from mpi4py import MPI
 import numpy as np
 
-import config
-
-rollout_comp = ["s", "a", "r", "neglog", "mask"]
+rollout_comp = ["s", "a", "prim_a", "r", "neglog", "mask", "last_values", "gae", "new_value"]
 
 
 # ------- STORAGE SYSTEM -------
 
 # network weights storage system
 
-_has_weights = False
+_has_weights = True
+_weights = ""
 
 def store_weights (weights):
 	global _has_weights
 	global _weights
-	
 	_weights = weights
 	_has_weights = True
 
@@ -27,11 +25,45 @@ def weights_sendable ():
 def send_weights ():
 	return _weights
 
+# critic weights storage system
+
+_has_critic = True
+_critic = ""
+
+def store_critic (critic):
+	global _has_critic
+	global _critic
+	_critic = critic
+	_has_critic = True
+
+def critic_sendable ():
+	return _has_critic
+
+def send_critic ():
+	return _critic
+
+# primitive weights storage system
+
+_has_primitive = True
+_primitive = []
+
+def store_primitive (primitive):
+	global _has_primitive
+	global _primitive
+	_primitive = primitive
+	_has_primitive = True
+
+def primitive_sendable ():
+	return _has_primitive
+
+def send_primitive ():
+	return _primitive
+
 # rollout storage system
 
 rollouts = {key:[] for key in rollout_comp}
 rollouts_nb = {key:0 for key in rollout_comp}
-sent_rollout_nb = config.training["rollout_nb"]
+sent_rollout_nb = 0
 dumped_rollouts = 0
 
 def store_rollout (x, key):
@@ -55,6 +87,7 @@ def set_rollout_nb (x):
 	global sent_rollout_nb
 	sent_rollout_nb = x
 
+
 # adr storage system
 
 adr_values = {}
@@ -68,7 +101,24 @@ def adr_sendable ():
 def send_adr ():
 	return adr_values
 
+# current node storage system
 
+cur_node = 0
+
+def store_node (new_values):
+	global cur_node
+	if new_values > cur_node:
+		for key in rollout_comp:
+			rollouts[key] = []
+			rollouts_nb[key] = 0
+	cur_node = max(cur_node, new_values)
+
+def node_sendable ():
+	return not cur_node == -1
+
+def send_node ():
+	return cur_node
+	
 
 
 # tags
@@ -78,15 +128,15 @@ WORK_DONE = 1
 # global var
 is_work_done = False
 
-store_dict = {"weights" : store_weights, "rollout_nb" : set_rollout_nb, "adr" : store_adr}
+store_dict = {"weights" : store_weights, "critic" : store_critic, "primitive" : store_primitive, "rollout_nb" : set_rollout_nb, "adr" : store_adr, "node" : store_node}
 for key in rollout_comp:
 	store_dict[key] = lambda x, key=key : store_rollout(x, key)
 
-sendable_dict = {"weights" : weights_sendable, "dumped" : (lambda : True), "adr" : adr_sendable}
+sendable_dict = {"weights" : weights_sendable, "critic" : critic_sendable, "primitive" : primitive_sendable, "dumped" : (lambda : True), "adr" : adr_sendable, "node" : node_sendable}
 for key in rollout_comp:
 	sendable_dict[key] = lambda key=key : rollout_sendable(key)
 
-send_dict = {"weights" : send_weights, "dumped" : (lambda : dumped_rollouts), "adr" : send_adr}
+send_dict = {"weights" : send_weights, "critic" : send_critic, "primitive" : send_primitive, "dumped" : (lambda : dumped_rollouts), "adr" : send_adr, "node" : send_node}
 for key in rollout_comp:
 	send_dict[key] = lambda key=key : send_rollout(key)
 
@@ -108,12 +158,16 @@ def work_loop ():
 	request_stack = []
 	status = MPI.Status()
 	
-	notified_procs = 2
+	notified_procs = 1
 	num_procs = _comm.Get_size()
 	while notified_procs < num_procs:
 		# wait for new message
 		data =_comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status)
-		is_work_done = is_work_done or status.Get_tag() == WORK_DONE
+		if status.Get_tag() == WORK_DONE:
+			notified_procs += 1
+			print("notified_procs", notified_procs, flush=True)
+		
+		do_store = not "node" in data or data["node"] >= cur_node
 		
 		# process and store the message's data
 		# and add the message's request to the stack
@@ -121,8 +175,10 @@ def work_loop ():
 			if key == "request":
 				request_stack.append((status.Get_source(), value))
 				
-			else:
+			elif do_store:
 				store_dict[key](value)
+					
+					
 		# try to process the requests that can be
 		not_processed = []
 		while request_stack:
@@ -130,18 +186,15 @@ def work_loop ():
 			feasable = np.all([sendable_dict[req]() for req in request])
 			if feasable:
 				data = {req:send_dict[req]() for req in request}
-				tag = WORK_DONE if is_work_done else DEFAULT
+				tag = DEFAULT
 				_comm.send(data, dest=rank, tag=tag)
-				if is_work_done:
-					notified_procs += 1
-					print("notified_procs", notified_procs, flush=True)
 			else:
 				not_processed.append((rank, request))
 		
 		for x in not_processed:
 			request_stack.append(x)
-			rank, req = x
 			"""
+			rank, req = x
 			print("wh: msg {} not processed".format(x), flush=True)
 			print("wh: feasable = {}".format(str([sendable_dict[req]() for req in request])))
 			print("wh: rollout_nb =", rollouts_nb)
