@@ -80,6 +80,23 @@ class LoadActorNode:
 			#save the actor
 			actor.save(actor.save_path)
 
+class SaveActorNode:
+	def __init__ (self, mpi_role):
+		self.mpi_role = mpi_role
+	
+	def run (self, save_path, proc_num, input_dict, output_dict):
+		# create the actor
+		actor = input_dict['Actor'][0]
+		output_dict['Actor'] = actor
+
+		if self.mpi_role == 'main':
+			path = os.path.join(save_path['models'], self.data['model_path_prop'])
+			os.makedirs(path)
+			path += "/{}"
+			
+			#save the actor
+			actor.save(path)
+
 from models.critic import Critic
 
 class LoadCriticNode:
@@ -377,6 +394,7 @@ type_dict = {
 		'SimpleActorNode':SimpleActorNode,
 		'MixActorNode':MixActorNode,
 		'LoadActorNode':LoadActorNode,
+		'SaveActorNode':SaveActorNode,
 		'LoadCriticNode':LoadCriticNode,
 		'FreePrimitiveNode':FreePrimitiveNode,
 		'SimpleEnvNode':SimpleEnvNode,

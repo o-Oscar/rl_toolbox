@@ -136,7 +136,7 @@ class SimpleActor (BaseActor):
 		
 		
 		self.model = tf.keras.Model((input, ()), (self.core_model(obs_ph)[0], ()), name="actor_model")
-		self.model.summary()
+		self.core_model.summary()
 		
 		last_layer.set_weights([x/10 for x in last_layer.get_weights()])
 		
@@ -240,7 +240,7 @@ class oldLSTMActor (BaseActor):
 			action = (last_layer(lstm)+1)/2
 			
 			self.core_model = tf.keras.Model((obs_input, init_state), (action, end_state), name="actor_core_model")
-			#self.model.summary()
+			self.core_model.summary()
 		
 		
 		self.model = tf.keras.Model((input, main_init_state), self.core_model((obs_ph, main_init_state)), name="actor_model")

@@ -5,7 +5,7 @@ class Leg:
 	def __init__ (self, inv_x=False, inv_y=False, inv_1=False, inv_2=False, inv_3=False):
 		self.l1 = 0.196
 		self.l2 = 0.180
-		self.e = 0.02 + 0.098/2
+		self.e = 0.02 + 0.098/2 # 0.069
 		
 		self.fac_1 = -1 if inv_1 else 1
 		self.fac_2 = -1 if inv_2 else 1
@@ -13,6 +13,7 @@ class Leg:
 		
 		self.fac_x = -1 if inv_x else 1
 		self.fac_y = -1 if inv_y else 1
+		self.inv_y = inv_y
 		
 		self.create_range ()
 	
@@ -23,6 +24,8 @@ class Leg:
 	
 	# --- From raw action to cathesian coordinate ---
 	def calc_coord (self, action):
+		if self.inv_y:
+			action[1] = 1-action[1]
 		a = np.diag(action)
 		u = (np.identity(3)-a) @ self.u_m + a @ self.u_M
 		b = (np.identity(3)-a) @ self.b_m + a @ self.b_M
@@ -45,7 +48,7 @@ class Leg:
 	# --- From cathesian coordinate to rotation angle ---
 	def calc_angle (self, coord): # coord : [x, y, z]
 		coord[0] *= self.fac_x
-		coord[1] *= self.fac_y
+		#coord[1] *= self.fac_y
 		
 		lpx = np.sqrt(coord[1]**2 + coord[2]**2 - self.e**2)
 		theta_1 = np.arctan2(lpx, self.e)
@@ -69,12 +72,15 @@ class Leg:
 	# --- Creating the work volume ---
 	def create_range (self):
 		
-		zM = -self.l1
-		ym = 0.1
-		l = self.l1+self.l2 # -0.01
-		xm = 0.1
-		zm = zM - 0.1 #-np.sqrt(l*l-xm*xm-ym*ym)
-		xM = xm #np.sqrt(l*l-ym*ym-zM*zM)
+		zM = -0.23
+		ym = -0.069
+		l = np.sqrt((self.l1+self.l2)**2+self.e**2) -0.01
+		xm = 0.15
+		zm = -0.32 #-np.sqrt(l*l-xm*xm-ym*ym)
+		xM = 0.2 #np.sqrt(l*l-ym*ym-zM*zM)
+		yl = np.sqrt(l**2 - zm**2 - xm**2)
+		yh = np.sqrt(l**2 - zM**2 - xM**2)
+		
 		"""
 		
 		zM = -self.l1*2/3
@@ -85,17 +91,17 @@ class Leg:
 		xM = np.sqrt(l*l-ym*ym-zM*zM)
 		"""
 		
-		umx, bmx = self.face_from_point([-xm, -ym, zm], [-xm, ym, zm], [-xM, ym, zM])
-		uMx, bMx = self.face_from_point([xm, -ym, zm], [xm, ym, zm], [xM, ym, zM])
+		umx, bmx = self.face_from_point([-xm, yl, zm], [-xm, ym, zm], [-xM, yh, zM])
+		uMx, bMx = self.face_from_point([xm, yl, zm], [xm, ym, zm], [xM, yh, zM])
 		
-		umy, bmy = self.face_from_point([-xm, -ym, zm], [xm, -ym, zm], [xm, -ym, zM])
-		uMy, bMy = self.face_from_point([-xm, ym, zm], [xm, ym, zm], [xm, ym, zM])
+		umy, bmy = self.face_from_point([-xm, ym, zm], [xm, ym, zm], [xM, ym, zM])
+		uMy, bMy = self.face_from_point([-xm, yl, zm], [xm, yl, zm], [xM, yh, zM])
 		
-		bmy += self.e*self.fac_y
-		bMy += self.e*self.fac_y
+		#bmy += self.e*self.fac_y
+		#bMy += self.e*self.fac_y
 		
-		umz, bmz = self.face_from_point([-xm, ym, zm], [xm, ym, zm], [xm, -ym, zm])
-		uMz, bMz = self.face_from_point([-xm, ym, zM], [xm, ym, zM], [xm, -ym, zM])
+		umz, bmz = self.face_from_point([-xm, yl, zm], [xm, yl, zm], [xm, ym, zm])
+		uMz, bMz = self.face_from_point([-xM, yh, zM], [xM, yh, zM], [xM, ym, zM])
 		
 		self.u_m = np.stack([umx, umy, umz])
 		self.u_M = np.stack([uMx, uMy, uMz])
@@ -110,6 +116,9 @@ class Leg:
 		v1 = p1-p2
 		v2 = p3-p2
 		u = np.cross(v1,v2)
-		u /= np.sum(u)
+		u /= np.sqrt(np.sum(np.square(u)))
 		b = np.sum(p2*u)
 		return u, b
+
+	def standard_rot (self, rot):
+		return [rot[0]*self.fac_1, rot[1]*self.fac_2, rot[2]*self.fac_3]

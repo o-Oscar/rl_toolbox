@@ -68,5 +68,8 @@ act_A = np.asarray(act_A)
 
 
 class Blindfold:
+	def __init__ (self):
+		self.act_A = act_A
+		
 	def action_blindfold (self, input_action):
 		return input_action @ act_A

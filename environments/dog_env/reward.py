@@ -154,7 +154,8 @@ class BaseClearRew(RewardFunc):
 		self.a = 20
 		
 	def step (self):
-		return -np.square(self.state.base_pos[2]-0.27) * self.a
+		#return -np.square(self.state.base_pos[2]-0.27) * self.a
+		return -np.square(self.state.base_pos[2]-0.338) * self.a
 	
 	def done (self):
 		return False

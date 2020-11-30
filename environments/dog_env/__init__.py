@@ -170,20 +170,23 @@ class DogEnv():
 		self.kin.carthesian_act = self.carthesian_act
 		if self.carthesian_act:
 			#target_pose = np.asarray([0., 0., 0.3] * 4)
-			target_pose = np.asarray([0.5, 0.5, 0.3]*4)
+			#target_pose = np.asarray([0.5, 0.5, 0.3]*4)
+			target_pose = np.asarray([0.5, 0.7, 0.3, 0.5, 0.3, 0.3]*2)
+		"""
 		else:
 			target_pose = np.asarray([0.5, 0.8, 0.3]*4)
-		
+		"""
 		
 		
 		des_v = 0#np.sqrt(np.sum(np.square(self.state.target_speed))) * np.random.random()
 		des_clear = 0#0.05 * np.random.random()
 		frame = int(np.random.random()*self.reset_motion.shape[0])
 		#act = self.reset_motion[frame]
-		act = target_pose + np.random.normal(size=(12,))*0.1
+		act = target_pose# + np.random.normal(size=(12,))*0.1
 		#legs_angle = self.kin.calc_joint_target (act)
 		legs_angle = np.asarray(self.kin.calc_joint_target (act))
 		self.sim.reset(des_v, des_clear, legs_angle)
+		self.state.joint_fac = self.kin.standard_rot([1]*12)
 		
 		self.state.target_pose = target_pose
 		self.state.mean_action = target_pose*1
@@ -213,8 +216,9 @@ class DogEnv():
 	
 	def choose_cmd (self, step=0):
 		# self.training_mode (0:onlyforward, 1:smartforward, 2:allinplace)
+		max_v_targ = 0.5
 		if self.training_mode == 0:
-			return (1, 0, 0)
+			return (max_v_targ, 0, 0)
 		elif self.training_mode == 1:
 			r = np.random.random()
 			"""
@@ -232,16 +236,16 @@ class DogEnv():
 				return (1, 0, 1)
 			"""
 			if r < 1/4:
-				return (1, 0, -np.random.random())
+				return (max_v_targ, 0, -np.random.random())
 			elif r < 2/4:
-				return (1, 0, 0)
+				return (max_v_targ, 0, 0)
 			elif r < 3/4:
-				return (1, 0, np.random.random())
+				return (max_v_targ, 0, np.random.random())
 			elif r < 4/4:
 				return (0, 0, 0)
 		elif self.training_mode == 2:
 			if step == 0:
-				return (1, 0, 0)
+				return (max_v_targ, 0, 0)
 			else:
 				theta = self.adr.value("theta")
 				if not step == 2: #not self.adr.is_test_param("theta"):
@@ -249,7 +253,7 @@ class DogEnv():
 				if np.random.random() < 0.5:
 					theta *= -1
 				
-				return (np.cos(theta), 0, np.sin(theta))
+				return (np.cos(theta)*max_v_targ, 0, np.sin(theta))
 			
 			"""
 			v = np.random.normal(size=(3,))

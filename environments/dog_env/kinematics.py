@@ -11,7 +11,8 @@ class Kinematics():
 			
 		self.carthesian_act = True
 
-	def calc_joint_target (self, action):
+	def calc_joint_target (self, raw_action):
+		action = np.maximum(np.minimum(raw_action, 1), 0)
 		return self.motor_pos(action)
 
 	def motor_pos (self, raw_action):
@@ -26,3 +27,10 @@ class Kinematics():
 		for i in range(4):
 			to_return.append([action[i*3+j] for j in range(3)])
 		return to_return
+
+	def standard_rot (self, rot):
+		legs_rot = self.split_legs(rot)
+		to_return = []
+		for leg, leg_rot in zip(self.all_legs, legs_rot):
+			to_return += leg.standard_rot (leg_rot)
+		return np.asarray(to_return)

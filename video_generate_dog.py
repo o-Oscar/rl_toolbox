@@ -23,8 +23,8 @@ if __name__ == '__main__':
 	env = DogEnv(debug=debug, render=render)
 
 
-	#path = "results\\baseline\\models\\expert\\{}"
-	path = "results\\exp_2\\models\\expert\\{}"
+	#path = "results\\dog_working\\models\\expert\\{}"
+	path = "results\\exp_0\\models\\expert\\{}"
 	
 	if actor_type=="mix":
 		primitives = [SimpleActor(env) for i in range(2)]
@@ -58,6 +58,8 @@ if __name__ == '__main__':
 	all_speed = []
 	all_sim = []
 	
+	all_anim = []
+	
 	"""
 	env.reset(1)
 	obs1, _, _ = env.step(np.asarray([0.5]*12))
@@ -76,8 +78,7 @@ if __name__ == '__main__':
 	"""
 	env.state.target_speed =  np.asarray([1, 0])*1
 	env.state.target_rot_speed = 0
-	
-	for i in range(100):
+	for i in range(12*30*2):
 		events = p.getKeyboardEvents()
 		speed = 1
 		rot = 0
@@ -89,6 +90,22 @@ if __name__ == '__main__':
 			speed -=1
 		if 122 in events:
 			speed +=1
+		
+		p_y = 0.5
+		y = env.state.base_pos[1]
+		y_targ = 0
+		theta_targ = min(max(p_y*(y_targ-y), -np.pi/3), np.pi/3)
+		
+		theta = np.arctan2(env.state.planar_speed[1], env.state.planar_speed[0])
+		
+		delta_theta = theta_targ-theta
+		while delta_theta < np.pi:
+			delta_theta += np.pi*2
+		while delta_theta > np.pi:
+			delta_theta -= np.pi*2
+		
+		p_theta = 1
+		#rot = min(max(p_theta*delta_theta, -0.5), 0.5)
 		"""
 		if speed == 0:
 			rot = 0
@@ -101,13 +118,13 @@ if __name__ == '__main__':
 		#speed = 0
 		#rot = 0
 		
-		"""
+		
 		task = [-1, -1,-1, -1, 0, 0, 1, 1, 1, 1, 0, 0]
 		rot = task[(i//30)%len(task)]
-		"""
+		
 		#env.set_cmd(2, rot)
-		#env.state.target_speed =  np.asarray([speed, 0])
-		#env.state.target_rot_speed = rot#rot
+		env.state.target_speed =  np.asarray([speed/2, 0])
+		env.state.target_rot_speed = rot#rot
 		
 		#print(env.state.base_clearance)
 		#print(env.state.target_rot_speed)
@@ -123,7 +140,7 @@ if __name__ == '__main__':
 		act = act.numpy()
 		act = env.symetry.action_symetry(act)
 		all_act.append(act)
-		act = act + np.random.normal(size=12).reshape(act.shape) * np.exp(-3.5)
+		act = act # + np.random.normal(size=12).reshape(act.shape) * np.exp(-3.06)
 		#act = np.asarray([0.0, 1.0408382989215212, -1.968988857605835]*4)
 		#act = np.asarray([0.5, 0.5, 0.3]* 4)
 		obs, rew, done = env.step(act)
@@ -134,16 +151,31 @@ if __name__ == '__main__':
 		all_dev.append(env.dev)
 		all_speed.append(env.state.loc_pos_speed[0])
 		#print(rew)
-		time.sleep(1/30)
+		#time.sleep(1/30)
 		
 		sim = np.mean(np.square((obs - env.symetry.state_symetry(obs))))
 		all_sim.append(sim)
+		
+		cur_anim = []
+		for i in range(3):
+			cur_anim.append(env.state.base_pos[i])
+		for i in range(4):
+			cur_anim.append(env.state.base_rot[i])
+		for i in range(12):
+			cur_anim.append(env.state.joint_rot[i])
+		all_anim.append(cur_anim)
+	print(env.state.loc_up_vect)
 	"""
 	all_act = np.asarray(all_act).reshape((-1, 12))
 	for i in range(4):
 		plt.plot(all_act[:,0+3*i], all_act[:,2+3*i], 'o')
 	#plt.plot(all_act[:,1])
 	
+	if actor_type=="mix":
+		plt.plot(np.squeeze(all_inf))
+		plt.show()
+		"""
+	"""
 	for i in range(4):
 		l = [np.sum(np.square(v)[:2]) if d < 0.02 else 0 for d, v in zip(env.sim.to_plot[i+24], env.sim.to_plot[i+24+8+2])]
 		#plt.plot(l, label=str(i))
@@ -151,11 +183,13 @@ if __name__ == '__main__':
 		#plt.plot(np.sqrt(np.sum(np.square(env.sim.to_plot[i+24+8+2])[:,:2], axis=1)), label=str(i)+"speed")
 		
 	plt.legend()
+	plt.show()
+	"""
 	
-	if actor_type=="mix":
-		plt.plot(np.squeeze(all_inf))
-		plt.show()
-		"""
+	print(np.asarray(all_anim).shape)
+	all_anim = np.asarray(all_anim)[50:]
+	np.save("anim.npy", all_anim)
+	
 	if len(all_rew) > 0:
 		print("rew :", np.mean(all_rew))
 		#print("speed :", np.mean(env.sim.to_plot[8+24]
@@ -163,7 +197,8 @@ if __name__ == '__main__':
 		print("speed (max) :", np.max(all_speed))
 		#print("rew :", np.mean(all_rew2))
 		#print("speed :", np.mean(env2.sim.to_plot[8+24]))
-	print(env.state.joint_rot)
+	print(env.kin.standard_rot(env.state.joint_rot))
+	
 	"""
 	all_obs = np.asarray(all_obs)[:,0,:]
 	plt.plot(all_obs.mean(axis=0))
@@ -180,8 +215,8 @@ if __name__ == '__main__':
 		plt.plot(env.sim.to_plot[i+12])
 	#plt.plot(env.sim.to_plot[8+24])
 	plt.show()
-	
 	"""
+	
 	for i in range(9):
 		plt.plot(env.to_plot[i], label=str(i))
 	#plt.plot(env.sim.to_plot[8+24])

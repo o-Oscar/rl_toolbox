@@ -79,7 +79,7 @@ class DogState:
 		self.base_rot_mat = np.identity(3)
 		self.planar_speed = [0, 0]
 		self.loc_planar_speed = [0, 0]
-		self.loc_up_vect = [0, 0, 0]
+		self.loc_up_vect = [0, 0, 1]
 		self.loc_pos_speed = [0, 0, 0]
 		self.loc_rot_speed = [0, 0, 0]
 		
@@ -106,6 +106,7 @@ class DogState:
 		self.joint_offset = np.zeros((12,))
 		self.loc_up_vect_offset = np.zeros((3,))
 		
+		self.joint_fac = [1]*12
 		
 		# --- adr ---
 		self.rand_offset = []
@@ -127,20 +128,21 @@ class DogState:
 		
 			if state_Id == config.JOINT_POS:
 				for i in range(12):
-					to_return.append(self.joint_rot[i] + self.joint_offset[i])
+					to_return.append(self.joint_rot[i]*self.joint_fac[i] + self.joint_offset[i])
 			elif state_Id == config.JOINT_POS_RAND:
 				for i in range(12):
-					to_return.append(self.joint_rot[i] + delta_joint_pos[i])
+					to_return.append(self.joint_rot[i]*self.joint_fac[i] + delta_joint_pos[i])
 					
 			elif state_Id == config.JOINT_VEL:
 				for i in range(12):
-					to_return.append(self.joint_rot_speed[i])
+					to_return.append(self.joint_rot_speed[i]*self.joint_fac[i])
 			elif state_Id == config.JOINT_VEL_RAND:
 				for i in range(12):
-					to_return.append(self.joint_rot_speed[i])
+					to_return.append(self.joint_rot_speed[i]*self.joint_fac[i])
 					
 			elif state_Id == config.LOCAL_UP:
-				to_return += [self.loc_up_vect[0], self.loc_up_vect[1], self.loc_up_vect[2]]
+				#to_return += [self.loc_up_vect[0], self.loc_up_vect[1], self.loc_up_vect[2]]
+				to_return += [0, 0, 1]
 			elif state_Id == config.LOCAL_UP_RAND:
 				to_return += [self.loc_up_vect[0]+self.loc_up_vect_offset[0], self.loc_up_vect[1]+self.loc_up_vect_offset[1], self.loc_up_vect[2]+self.loc_up_vect_offset[2]]
 				
@@ -173,6 +175,7 @@ class DogState:
 		for i in range(12):
 			to_return.append(self.joint_rot_speed[i])
 		"""
+		
 		return [np.asarray(to_return)]
 		
 		
