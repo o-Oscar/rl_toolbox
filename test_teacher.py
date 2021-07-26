@@ -19,10 +19,10 @@ model = PPO.load(config.models_best_path["teacher/PPO"], env=env)
 
 env_setup={
 	# "kp":30,
-	# "base_state" : np.asarray([0, 0, 0.7, 0, 0, 0, 1]),
-	# "update_phase": False,
+	"base_state" : np.asarray([0, 0, 0.6, 0, 0, 0, 1]),
+	"update_phase": False,
 	"phase": np.pi,
-	"foot_f": [0.1]*4,
+	"foot_f": [0.5]*4,
 }
 
 obs = env.reset(env_setup)
@@ -44,7 +44,7 @@ for i in range(30000 if render else 300):
 	# sym_action, _states = model.predict(sym_obs, deterministic=True)
 	# action = switch_legs @ sym_action
 	
-	# action = action * 0
+	action = action * 0
 	obs, rew, done, _ = env.step(action)
 	all_rew.append([r.step()*r.a for r in env.reward.all_rew_inst])
 	# print(env.state.target_speed)

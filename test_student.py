@@ -53,6 +53,7 @@ model.load_state_dict(th.load(config.models_best_path["student/model"]))
 
 env_setup={
 	# "kp":30,
+	"foot_f": [0.3]*4,
 }
 
 obs = env.reset(env_setup)
