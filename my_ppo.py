@@ -217,25 +217,30 @@ class MyPPO(OnPolicyAlgorithm):
 
 				# ratio between old and new policy, should be one at the first iteration
 				ratio = th.exp(log_prob - rollout_data.old_log_prob)
-
-				# clipped surrogate loss
-				policy_loss_1 = advantages * ratio
-				policy_loss_2 = advantages * th.clamp(ratio, 1 - clip_range, 1 + clip_range)
-				policy_loss = -th.min(policy_loss_1, policy_loss_2).mean()
-
-
+				
+				if False:
+					# clipped surrogate loss
+					policy_loss_1 = advantages * ratio
+					policy_loss_2 = advantages * th.clamp(ratio, 1 - clip_range, 1 + clip_range)
+					policy_loss = -th.min(policy_loss_1, policy_loss_2).mean()
+				else:
+					alpha = 0.3
+					policy_loss_1 = advantages * ratio
+					policy_loss_2 = advantages * ((1+alpha)*th.clamp(ratio, 1 - clip_range, 1 + clip_range) - alpha * ratio)
+					policy_loss = -th.min(policy_loss_1, policy_loss_2).mean()
+				
 				# TODO : Add the symetric and stability loss here
-				sym_obs = th.matmul(rollout_data.observations, th.from_numpy(self.default_env.obs_gen.get_sym_obs_matrix()))
-				sym_act = th.matmul(self.policy._predict(sym_obs), th.from_numpy(switch_legs))
+				sym_obs_matrixes = self.default_env.obs_gen.get_sym_obs_matrix()
+				sym_obs = {key:th.matmul(rollout_data.observations[key], th.from_numpy(matrix)) for key, matrix in sym_obs_matrixes.items()}
+				sym_act = th.matmul(self.policy._predict(sym_obs, deterministic=True), th.from_numpy(switch_legs))
 
 				# sym_loss = th.mean(th.square(sym_act - self.policy._predict(rollout_data.observations).detach()), dim=1)
-				sym_loss = th.mean(th.square(sym_act - self.policy._predict(rollout_data.observations)), dim=1)
+				sym_loss = th.mean(th.square(sym_act - self.policy._predict(rollout_data.observations, deterministic=True)), dim=1)
 				sym_loss = th.mean(sym_loss, dim=0)
 
 				policy_loss = policy_loss + sym_loss * 1
 
 				sym_losses.append(sym_loss.item())
-
 
 				# Logging
 				pg_losses.append(policy_loss.item())
@@ -335,3 +340,66 @@ class MyPPO(OnPolicyAlgorithm):
 			eval_log_path=eval_log_path,
 			reset_num_timesteps=reset_num_timesteps,
 		)
+
+
+
+
+
+from typing import Callable, Dict, List, Optional, Tuple, Type, Union
+
+import gym
+import torch as th
+from torch import nn
+
+from models import TeacherMlpExtractor
+
+from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
+from stable_baselines3.common.preprocessing import get_flattened_obs_dim
+class DoNothingExtractor(BaseFeaturesExtractor):
+    """
+    Feature extract that flatten the input.
+    Used as a placeholder when feature extraction is not needed.
+
+    :param observation_space:
+    """
+
+    def __init__(self, observation_space: gym.Space):
+        super(DoNothingExtractor, self).__init__(observation_space, get_flattened_obs_dim(observation_space))
+        self.flatten = nn.Flatten()
+
+    def forward(self, observations: th.Tensor) -> th.Tensor:
+        return observations# self.flatten(observations)
+
+
+from stable_baselines3.common.policies import ActorCriticPolicy
+class TeacherActorCriticPolicy(ActorCriticPolicy):
+	def __init__(
+		self,
+		observation_space: gym.spaces.Space,
+		action_space: gym.spaces.Space,
+		lr_schedule: Callable[[float], float],
+		net_arch: Optional[List[Union[int, Dict[str, List[int]]]]] = None,
+		activation_fn: Type[nn.Module] = nn.Tanh,
+		*args,
+		**kwargs,
+	):
+
+		super(TeacherActorCriticPolicy, self).__init__(
+			observation_space,
+			action_space,
+			lr_schedule,
+			net_arch,
+			activation_fn,
+			# Pass remaining arguments to base class
+			features_extractor_class=DoNothingExtractor,
+			*args,
+			**kwargs,
+		)
+		# Disable orthogonal initialization
+		print(observation_space)
+		self.ortho_init = False
+
+	def _build_mlp_extractor(self) -> None:
+		self.mlp_extractor = TeacherMlpExtractor(self.observation_space)
+		# self.mlp_extractor = TeacherMlpExtractor(self.features_dim)
+

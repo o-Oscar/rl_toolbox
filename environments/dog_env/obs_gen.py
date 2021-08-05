@@ -5,6 +5,26 @@ class ObsGen:
 	def reset (self):
 		pass
 
+class TeacherObsGenerator (ObsGen):
+	def __init__ (self, state):
+		self.state = state
+
+		
+		self.sub_gen_class = {"real_obs": RealisticObsGenerator, "sim_obs": SimObsGenerator, "vf_obs": VfGenerator}
+		self.sub_gen = {key:Gen(self.state) for key, Gen in self.sub_gen_class.items()}
+		
+		self.obs_dim = {key:gen.obs_dim for key, gen in self.sub_gen.items()}
+	
+	def reset (self):
+		for key, gen in self.sub_gen.items():
+			gen.reset()
+	
+	def generate (self):
+		return {key:gen.generate() for key, gen in self.sub_gen.items()}
+	
+	def get_sym_obs_matrix (self):
+		return {key:gen.get_sym_obs_matrix() for key, gen in self.sub_gen.items()}
+
 class RealisticObsGenerator (ObsGen):
 	def __init__ (self, state):
 		self.state = state
@@ -16,6 +36,7 @@ class RealisticObsGenerator (ObsGen):
 								
 								Phase,
 								RandLocalUp,
+								# LocalUp,
 								#RotVel, # <- to remove
 								
 								Cmd_PosVel,
@@ -46,26 +67,34 @@ class RealisticObsGenerator (ObsGen):
 			a = b
 		return to_return.astype(np.float32)
 
-class FalseRealisticObsGenerator (ObsGen):
+class SimObsGenerator (ObsGen):
 	def __init__ (self, state):
 		self.state = state
 		
-		self.sub_gen_class = [	JointTarget,
-								ZeroJointDelta,
-								JointTarget,
-								# JointSpeed, # <- to remove
+		self.sub_gen_class = [	
+								# JointSpeed,
+								# RotVel,
+								# Height,
+								# LocPosVel,
+								FootFric,
+								# FootClearance, 
+								# FootNormal,
+								MotorConsts, 
+								GravityOffset,
+
+								# # duplicate with realistic :
+								# JointTarget,
+								# JointDelta,
+								# JointPos,
 								
-								Phase,
-								RandLocalUp,
-								#RotVel, # <- to remove
+								# Phase,
+								# # RandLocalUp,
+								# LocalUp,
+								# #RotVel, # <- to remove
 								
-								Cmd_PosVel,
-								Cmd_RotVel,
-								
-								#LastAction,
-								
-								#Height, # <- to remove
-								#LocPosVel, # <- to remove
+								# Cmd_PosVel,
+								# Cmd_RotVel,
+
 								]
 		self.sub_gen = [Gen(self.state) for Gen in self.sub_gen_class]
 		
@@ -77,7 +106,7 @@ class FalseRealisticObsGenerator (ObsGen):
 	
 	def generate (self):
 		return np.concatenate([gen.generate() for gen in self.sub_gen])
-
+	
 	def get_sym_obs_matrix (self):
 		to_return = np.zeros((self.obs_dim, self.obs_dim))
 		a = 0
@@ -86,39 +115,34 @@ class FalseRealisticObsGenerator (ObsGen):
 			to_return[a:b,a:b] = gen.get_sym_obs_matrix()
 			a = b
 		return to_return.astype(np.float32)
-	
-class FullObsGenerator (ObsGen):
+
+
+class VfGenerator (ObsGen):
 	def __init__ (self, state):
 		self.state = state
 		
-		self.sub_gen_class = [JointTarget,
-								JointDelta,
-								JointPos,
+		self.sub_gen_class = [	
 								JointSpeed,
-								# FootPos,
-								# FootMeanPos,
-								
-								Phase,
-								LocalUp,
 								RotVel,
-								
-								Cmd_PosVel,
-								Cmd_RotVel,
-								
 								Height,
 								LocPosVel,
 								FootFric,
+								FootClearance, 
+								FootNormal,
+								MotorConsts, 
+								GravityOffset,
 								]
 		self.sub_gen = [Gen(self.state) for Gen in self.sub_gen_class]
 		
 		self.obs_dim = sum([gen.obs_dim for gen in self.sub_gen])
-		
+	
 	def reset (self):
 		for gen in self.sub_gen:
 			gen.reset()
+	
 	def generate (self):
 		return np.concatenate([gen.generate() for gen in self.sub_gen])
-
+	
 	def get_sym_obs_matrix (self):
 		to_return = np.zeros((self.obs_dim, self.obs_dim))
 		a = 0
@@ -127,12 +151,7 @@ class FullObsGenerator (ObsGen):
 			to_return[a:b,a:b] = gen.get_sym_obs_matrix()
 			a = b
 		return to_return.astype(np.float32)
-	def get_sym_obs_bias (self):
-		to_return = np.zeros((self.obs_dim, ))
-		a = 0
-		for gen in self.sub_gen:
-			b = a + gen.obs_dim
-			to_return[a:b] = gen.get_sym_obs_bias()
+
 
 
 # -------------------------------------------- Joint related --------------------------------------------
@@ -194,6 +213,15 @@ class JointSpeed (ObsGen):
 		self.obs_dim = 12
 	def generate (self):
 		return np.asarray(self.state.joint_rot_speed)/30
+	def get_sym_obs_matrix (self):
+		return switch_legs
+	
+class LastAction (ObsGen):
+	def __init__ (self, state):
+		self.state = state
+		self.obs_dim = 12
+	def generate (self):
+		return np.asarray(self.state.last_action)
 	def get_sym_obs_matrix (self):
 		return switch_legs
 	
@@ -305,7 +333,7 @@ class FootFric (ObsGen):
 		self.state = state
 		self.obs_dim = 4
 	def generate (self):
-		return np.asarray(self.state.foot_f)
+		return np.asarray(self.state.foot_f)*10
 	def get_sym_obs_matrix(self):
 		return np.asarray([
 							[0, 1, 0, 0],
@@ -314,10 +342,47 @@ class FootFric (ObsGen):
 							[0, 0, 1, 0]
 						])
 
-# -------------------------------------------- Misc --------------------------------------------
-class LastAction (ObsGen):
+class FootClearance (ObsGen):
+	def __init__ (self, state):
+		self.state = state
+		self.obs_dim = 4
+	def generate (self):
+		return np.asarray(self.state.foot_clearance) * 10
+	def get_sym_obs_matrix(self):
+		return np.asarray([
+							[0, 1, 0, 0],
+							[1, 0, 0, 0],
+							[0, 0, 0, 1],
+							[0, 0, 1, 0]
+						])
+
+class FootNormal (ObsGen):
 	def __init__ (self, state):
 		self.state = state
 		self.obs_dim = 12
 	def generate (self):
-		return np.asarray(self.state.prev_actions[-1])
+		return np.asarray(self.state.loc_foot_normal.flatten())
+	def get_sym_obs_matrix(self):
+		return switch_legs
+
+
+
+# -------------------------------------------- Misc --------------------------------------------
+
+class MotorConsts (ObsGen):
+	def __init__ (self, state):
+		self.state = state
+		self.obs_dim = 2
+	def generate (self):
+		return np.asarray([(self.state.kp0-60)/10, (self.state.kd0_fac-0.12)/0.2])
+	def get_sym_obs_matrix(self):
+		return np.diag([1, 1])
+
+class GravityOffset (ObsGen):
+	def __init__ (self, state):
+		self.state = state
+		self.obs_dim = 3
+	def generate (self):
+		return (self.state.loc_gravity - np.asarray([0, 0, -9.81]))
+	def get_sym_obs_matrix(self):
+		return np.diag([1, -1, 1])

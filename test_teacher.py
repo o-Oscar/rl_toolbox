@@ -4,25 +4,30 @@ from config import Config
 import time
 import numpy as np
 
-from stable_baselines3 import PPO
+from my_ppo import MyPPO, TeacherActorCriticPolicy
+
 
 import matplotlib.pyplot as plt
 
 render = True
 
-config = Config("friction_0", models_names=["teacher/PPO"])
+config = Config("exp_3", models_names=["teacher/PPO"])
 env = DogEnv(debug=render)
 
 
 
-model = PPO.load(config.models_best_path["teacher/PPO"], env=env)
+model = MyPPO.load(config.models_best_path["teacher/PPO"], env=env, policy=TeacherActorCriticPolicy)
 
 env_setup={
-	# "kp":30,
-	"base_state" : np.asarray([0, 0, 0.6, 0, 0, 0, 1]),
-	"update_phase": False,
+	"kp":60,
+	"kd_fac":0.05,
+	# "base_state" : np.asarray([0, 0, 0.6, 0, 0, 0, 1]),
+	# "reset_base" : True,
+	# "update_phase": False,
 	"phase": np.pi,
-	"foot_f": [0.5]*4,
+	"foot_f": [0.1]*4,
+	# "action" : np.asarray([0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0])
+	"gravity": [0, -1, -9.81],
 }
 
 obs = env.reset(env_setup)
@@ -36,15 +41,18 @@ all_rew = []
 to_plot = [[] for i in range(100)]
 from my_ppo import switch_legs
 
-for i in range(30000 if render else 300):
+for i in range(30000 if render else 50):
 	start = time.time()
 	action, _states = model.predict(obs, deterministic=True)
 
-	# sym_obs = obs @ env.obs_gen.get_sym_obs_matrix()
-	# sym_action, _states = model.predict(sym_obs, deterministic=True)
-	# action = switch_legs @ sym_action
+	sym_obs = {key:x@y for (key, x), (_, y) in zip(obs.items(), env.obs_gen.get_sym_obs_matrix().items())}
+	print(sym_obs)
+	print(obs)
+	exit()
+	sym_action, _states = model.predict(sym_obs, deterministic=True)
+	action = switch_legs @ sym_action
 	
-	action = action * 0
+	action = action # + np.random.normal(size=12) * np.exp(-3)
 	obs, rew, done, _ = env.step(action)
 	all_rew.append([r.step()*r.a for r in env.reward.all_rew_inst])
 	# print(env.state.target_speed)
@@ -64,7 +72,7 @@ for i in range(30000 if render else 300):
 			to_plot[i+12].append(env.state.joint_torque[i])
 
 	if render:
-		while (time.time()-start < 0.03):
+		while (time.time()-start < 0.003):
 			pass 
 
 if not render:

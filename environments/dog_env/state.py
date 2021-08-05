@@ -31,7 +31,17 @@ class State:
 		self.loc_foot_pos = [[0, 0, 0] for i in range(4)]
 		self.loc_foot_speed = [[0, 0, 0] for i in range(4)]
 		self.loc_foot_acc = [[0, 0, 0] for i in range(4)]
+		self.foot_clearance = np.zeros((4,))
+		self.foot_normal = np.zeros((4,3))
+		self.loc_foot_normal = np.zeros((4,3))
 		self.other_contact = False
+
+		self.gravity = np.asarray([0, 0, -9.81])
+		self.loc_gravity = np.asarray([0, 0, -9.81])
+		self.kp0 = 60
+		self.kd0_fac = 0.12
+
+		self.last_action = np.zeros((12,))
 
 		self.phase = phase
 		self.frame = frame

@@ -5,7 +5,7 @@ from pathlib import Path
 from .simulator import Simulator
 from .kinematics import Kinematics
 from .state import State
-from .obs_gen import FullObsGenerator, RealisticObsGenerator
+from .obs_gen import TeacherObsGenerator
 from .reward import FullRewStandard
 		
 
@@ -14,7 +14,7 @@ from gym import spaces
 
 
 class DogEnv(gym.Env):
-	def __init__(self, debug=False, render=False, use_realistic_generator=False):
+	def __init__(self, debug=False, render=False):
 		super(DogEnv, self).__init__()
 		
 		self.debug = debug
@@ -22,26 +22,28 @@ class DogEnv(gym.Env):
 		self.state = State()
 		self.kin = Kinematics(self.state)
 		self.sim = Simulator(self.state, self.debug)
-		if not use_realistic_generator:
-			self.obs_gen = FullObsGenerator(self.state)
-		else:
-			self.obs_gen = RealisticObsGenerator(self.state)
-		# self.alternativ_obs_gen = [RealisticObsGenerator(self.state) for i in range(3)]
-		# self.obs_gen = RealisticObsGenerator(self.state)
+		self.obs_gen = TeacherObsGenerator(self.state)
+		
 		self.reward = FullRewStandard(self.state)
 		
 		self.act_dim = 12
 		self.obs_dim = self.obs_gen.obs_dim
 		
-		self.action_space = spaces.Box(low=-np.ones(shape=self.act_dim).astype(np.float32), high=np.ones(shape=self.act_dim).astype(np.float32), dtype=np.float32)
-		self.observation_space = spaces.Box(low=-np.ones(shape=self.obs_dim).astype(np.float32), high=np.ones(shape=self.obs_dim).astype(np.float32), dtype=np.float32)
+
+		self.action_space = self.get_box_space (self.act_dim)
+		# self.observation_space = spaces.Dict({"real_obs": self.get_box_space (self.obs_dim), "sim_obs": self.get_box_space (self.obs_dim)})
+		self.observation_space = spaces.Dict({key:self.get_box_space(obs_dim) for key, obs_dim in self.obs_dim.items()})
+
 	
+	def get_box_space (self, shape):
+		return spaces.Box(low=-np.ones(shape=shape).astype(np.float32), high=np.ones(shape=shape).astype(np.float32), dtype=np.float32)
+
 	def step(self, action):
 		action = np.maximum(np.minimum(action, 1), -1)
 		act = action.flatten()
 		
 		targ_legs_angle = self.kin.calc_joint_target (act, self.state.phase)
-		self.sim.step(targ_legs_angle)
+		self.sim.step(targ_legs_angle, act)
 		
 		
 		rew = self.reward.step()
@@ -56,8 +58,9 @@ class DogEnv(gym.Env):
 			"ref_name": "in_place",
 			"kin_use_reference" : True,
 			"phase" : 0,
-			"kp" : 60,
-			"kd_fac": 0.12,
+			# "kp" : 60,
+			# "kd_fac": 0.12,
+			# "gravity": [0, 0, -9.81],
 		}
 		self.state.sim_args.update(sim_args)
 		

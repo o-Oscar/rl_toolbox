@@ -1,12 +1,12 @@
 
 from environments.dog_env import DogEnv
 from config import Config
+
 import time
 import numpy as np
 
 import gym
 
-from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.env_checker import check_env
@@ -59,16 +59,20 @@ class CustomCallback(BaseCallback):
 		des_log_std = (-1) * (1-alpha) + (-3) * alpha
 		self.model.policy.log_std = th.nn.Parameter(self.model.policy.log_std*0 + des_log_std)
 
-from my_ppo import MyPPO
+from my_ppo import MyPPO, TeacherActorCriticPolicy
 
 
 if __name__ == "__main__":
 	
-	config = Config("friction_0", models_names=["teacher/PPO", "teacher/tensorboard"])
+	if False:
+		check_env(DogEnv(debug=False))
+		print("working !!")
+		exit()
+
+	config = Config("exp_3", models_names=["teacher/PPO", "teacher/tensorboard"])
 	env = SubprocVecEnv([lambda : Monitor(DogEnv()) for i in range(2)])
 	default_env = DogEnv(debug=False)
-	# check_env(env)
-
+	
 	
 	my_callback = CustomCallback(config)
 	callback = CallbackList([my_callback])
@@ -76,10 +80,11 @@ if __name__ == "__main__":
 		log_std_init=-1.,
 	)
 
-	model = MyPPO("MlpPolicy", env, default_env, policy_kwargs=policy_kwargs, verbose=1, batch_size=256, tensorboard_log=config.models_path["teacher/tensorboard"])
-	# model = MyPPO("MlpPolicy", env, default_env, policy_kwargs=policy_kwargs, verbose=1, batch_size=128, tensorboard_log=config.models_path["teacher/tensorboard"])
-
-	model.learn(total_timesteps=10000000, callback=callback)
+	# model = MyPPO(TeacherActorCriticPolicy, env, default_env, policy_kwargs=policy_kwargs, verbose=1, batch_size=256, tensorboard_log=config.models_path["teacher/tensorboard"])
+	model = MyPPO(TeacherActorCriticPolicy, env, default_env, policy_kwargs=policy_kwargs, verbose=1, batch_size=1024, tensorboard_log=config.models_path["teacher/tensorboard"])
+	
+	model.learn(total_timesteps=1000000, callback=callback)
+	# model.learn(total_timesteps=1000, callback=callback)
 
 	print("working !!")
 	

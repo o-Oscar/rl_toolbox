@@ -7,6 +7,9 @@ from scipy.spatial.transform import Rotation as R
 from .cmd import CMD_Setter
 import matplotlib.pyplot as plt
 
+# TODO : faire deux versions d'IdefX : Une avec terrain accidenté, l'autre avec terrain plat (actuel)
+# TODO : récupérer les poids de la dernière couche du réseau entraîné par PPO pour les transférer vers le student.
+
 class Simulator():
 
 	def __init__(self, state, debug=False):
@@ -23,6 +26,7 @@ class Simulator():
 	
 		# --- creating the simulation World ---
 		urdf_path = os.path.join("data", "idefX", "idefX.urdf")
+		# urdf_path = os.path.join("data", "idefX_valley", "idefX.urdf")
 		self.world = erquy.World()
 		self.world.loadUrdf (urdf_path, os.path.dirname(urdf_path))
 
@@ -66,7 +70,7 @@ class Simulator():
 	def v_to_s (self, qvel):
 		return (self.v_to_w_.T @  np.asarray(qvel).reshape((-1, 1))).reshape(np.asarray(qvel).shape)
 
-	def step (self, joint_target):
+	def step (self, joint_target, action):
 		
 		reset_base = "reset_base" in self.state.sim_args and self.state.sim_args["reset_base"]
 		# self.world.setPdTarget(inv_qpos([0] * (self.world.nq()-12) + list(joint_target)), inv_qvel([0]*self.world.nv())) # needs a valid qpos configurationo
@@ -78,10 +82,13 @@ class Simulator():
 			if reset_base:
 				qpos, qvel = self.world.getState()
 				self.world.setState(np.asarray(list(self.state.sim_args["base_state"]) + list(qpos[7:])), np.asarray([0, 0, 0, 0, 0, 0] + list(qvel[6:])))
-				
+
+			# print(self.get_feet_force())
+			# time.sleep(0.03)
+			# self.viz.update(self.world.getState()[0])
 		# print(current_torque)
 		for state in self.all_states:
-			self.update_state(state, joint_target)
+			self.update_state(state, joint_target, action=action)
 			
 		if self.debug:
 			self.viz.update(self.q_to_w(self.state.qpos))
@@ -148,7 +155,7 @@ class Simulator():
 			"""
 		# return is_min, is_max, current_torque, max_torque
 
-	def update_state (self, state, joint_target, update_phase=True):
+	def update_state (self, state, joint_target, update_phase=True, action=np.zeros((12,))):
 	
 		state.base_pos = self.world.getFramePosition(self.trunkIdx)
 		state.base_r = R.from_matrix(self.world.getFrameOrientation(self.trunkIdx))
@@ -172,6 +179,7 @@ class Simulator():
 		state.joint_torque = np.asarray(calc_f[-12:])
 		
 		state.foot_force = self.get_feet_force()
+		state.foot_clearance, state.foot_normal = self.get_feet_clearance()
 
 		for i, idx in enumerate(self.footFrameIdx):
 			state.foot_pos[i] = self.world.getFramePosition(idx)
@@ -181,6 +189,12 @@ class Simulator():
 			state.loc_foot_speed[i] = state.foot_speed[i] - state.base_pos_speed - np.cross(state.base_rot_speed, state.foot_pos[i] - state.base_pos)
 			state.loc_foot_speed[i] = state.base_r.inv().apply(state.loc_foot_speed[i])
 			state.loc_foot_acc[i] = (state.loc_foot_speed[i]-last_loc_foot_speed)/(self.timeStep*self.frameSkip)
+			state.loc_foot_normal[i] = state.base_r.inv().apply(state.foot_normal[i])
+			if i%2 == 1:
+				state.loc_foot_normal[i][1] = -state.loc_foot_normal[i][1]
+		
+		state.loc_gravity = state.base_r.inv().apply(state.gravity)
+		state.last_action = action
 		
 		if update_phase:
 			state.frame += 1
@@ -200,20 +214,47 @@ class Simulator():
 				if joint_interest[joint_id] > -1:
 					to_return[joint_interest[joint_id]] = to_return[joint_interest[joint_id]] + forces[i*3:i*3+3]
 		return to_return
-			
+	
+	def get_feet_clearance (self): # this function is ABSOLUTELY NOT urdf independant. Refacto this as soon as someone understands pinocchio better
+		all_dist = self.world.computeDistances()
+		feet_dist = all_dist[:4]
+		pos0 = feet_dist[:,:3]
+		pos1 = feet_dist[:,3:6]
+		normal = feet_dist[:,6:]
+		clearance = np.sqrt(np.sum(np.square(pos0-pos1), axis=1))
+		ret_normal = np.zeros_like(normal)
+		ret_clearance = np.zeros_like(clearance)
+		for i, idx in enumerate([2, 3, 0, 1]):
+			if np.any(np.isnan(normal[i])):
+				normal[i] = pos0-pos1
+				normal[i] = normal[i]/np.sqrt(np.sum(np.square(normal[i])))
+			if normal[i,2] < 0:
+				normal[i] = -normal[i]
+			ret_normal[idx] = normal[i]
+			ret_clearance[idx] = clearance[i]
+		return ret_clearance, ret_normal
+
 	def reset (self, render=True):
 
 		# ---- setting pids ----
 		n_dof = self.world.nv()
-		kp0 = self.state.sim_args["kp"] if "kp" in self.state.sim_args else 72 # <- standard 72, best according to a simple test : 60
-		kd0 = kp0* (self.state.sim_args["kd_fac"] if "kd_fac" in self.state.sim_args else 0.1) # <- standard
+
+		kp0 = 60 + np.random.uniform(-10, 0)
+		kd0_fac = 0.12 + np.random.uniform(-0.02, 0.02)
+		# kd0_fac = 0.05 + np.random.uniform(-0.02, 0.02)
+
+		kp0 = self.state.sim_args["kp"] if "kp" in self.state.sim_args else kp0 # <- standard 72, best according to a simple test : 60
+		kd0_fac = (self.state.sim_args["kd_fac"] if "kd_fac" in self.state.sim_args else kd0_fac) # <- standard
+		kd0 = kp0 * kd0_fac
 		self.kp0 = kp0
 		self.kd0 = kd0
+		self.state.kp0 = kp0
+		self.state.kd0_fac = kd0_fac
 		# kp0 = 62
 		# kd0 = kp0*0.1 
 		
 		r = 24/30
-		kp = np.asarray([0] * (n_dof - 12) + [kp0, kp0, kp0*r]*4)
+		kp = np.asarray([0] * (n_dof - 12) + [kp0, kp0, kp0*r]*4) + np.random.uniform(-5, 5, size=n_dof) * np.asarray([0] * (n_dof - 12) + [1] * 12)
 		kd = np.asarray([0] * (n_dof - 12) + [kd0, kd0, kd0*r]*4)
 		self.kp = kp
 		self.kd = kd
@@ -245,6 +286,7 @@ class Simulator():
 		
 		self.world.setMaterialPairProp(-1, -1, 0.5)
 
+		"""
 		self.max_f = 0.1
 		self.min_f = 0.
 		# self.all_f = [np.random.uniform(self.min_f, self.max_f) for i in range(4)]
@@ -252,15 +294,37 @@ class Simulator():
 		f = np.random.uniform(self.min_f, self.max_f)
 		# self.state.foot_f = [np.random.uniform(self.min_f, self.max_f) for i in range(4)]
 		self.state.foot_f = [f for i in range(4)]
+		"""
+		r = np.random.random()
+		if r < 1/3:
+			f0 = 0.1
+		elif r < 2/3:
+			f0 = 0.2
+		else:
+			f0 = 0.3
+
+		foot_f = np.maximum(0, np.random.uniform(f0-0.05, f0+0.05, size=4))
+
 		if "foot_f" in self.state.sim_args:
-			self.state.foot_f = self.state.sim_args["foot_f"]
+			foot_f = self.state.sim_args["foot_f"]
 		for i, strid in enumerate(["FL", "FR", "BL", "BR"]):
-			self.world.setMaterialPairProp(self.world.getJointIdxByName("universe"), self.world.getJointIdxByName(strid+"_forearm_joint"), self.state.foot_f[i])
+			self.world.setMaterialPairProp(self.world.getJointIdxByName("universe"), self.world.getJointIdxByName(strid+"_forearm_joint"), foot_f[i])
 		
+		if "gravity" in self.state.sim_args:
+			# self.state.gravity = np.asarray([0, 0, -9.81])
+			gravity = np.asarray(self.state.sim_args["gravity"])
+		else:
+			# self.state.gravity = np.asarray([0, 0, -9.81]) + np.random.uniform(-0.8, 0.8, size=3)
+			dg = f0*9.81*0.3
+			gravity = np.asarray([0, 0, -9.81]) + np.random.uniform(-dg, dg, size=3)
 
 		# --- actual state reset ---
 		for state in self.all_states:
 			state.reset(frame=cur_frame, phase=cur_phase)
+			state.kp0 = kp0
+			state.kd0_fac = kd0_fac
+			state.gravity = gravity
+			state.foot_f = foot_f
 			self.update_state(state, legs_angle, update_phase=False)
 		
 		self.cmdSetter.reset_cmd(targ_vel)
