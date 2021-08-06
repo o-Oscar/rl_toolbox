@@ -75,10 +75,14 @@ class Simulator():
 		reset_base = "reset_base" in self.state.sim_args and self.state.sim_args["reset_base"]
 		# self.world.setPdTarget(inv_qpos([0] * (self.world.nq()-12) + list(joint_target)), inv_qvel([0]*self.world.nv())) # needs a valid qpos configurationo
 		self.world.setPdTarget(self.q_to_w([0, 0, 0, 0, 0, 0, 1] + list(joint_target)), self.v_to_w([0]*self.world.nv()))
+		self.world.setMaxTorque(np.asarray([11 for i in range(18)]))
 
 		for t in range(self.frameSkip):
-			current_torque = self.try_to_integrate()
-			# self.world.integrate()
+			# current_torque = self.try_to_integrate()
+			self.world.integrate()
+			
+			current_torque = self.world.getPdForce()
+
 			if reset_base:
 				qpos, qvel = self.world.getState()
 				self.world.setState(np.asarray(list(self.state.sim_args["base_state"]) + list(qpos[7:])), np.asarray([0, 0, 0, 0, 0, 0] + list(qvel[6:])))
@@ -86,6 +90,7 @@ class Simulator():
 			# print(self.get_feet_force())
 			# time.sleep(0.03)
 			# self.viz.update(self.world.getState()[0])
+
 		# print(current_torque)
 		for state in self.all_states:
 			self.update_state(state, joint_target, action=action)
@@ -109,6 +114,7 @@ class Simulator():
 		to_plot = [[] for i in range(100)]
 		tests = 0
 		while not np.all(done):
+			print("tests : ", tests)
 			for i in range(n_dof):
 				if is_min[i] :
 					kp0[i] = 0
@@ -123,6 +129,7 @@ class Simulator():
 					kd0[i] = self.kd[i]
 					limit_torque[i] = 0
 			
+			print(limit_torque)
 			# print(limit_torque)
 			self.world.setGeneralizedTorque(self.v_to_w(np.asarray(limit_torque)))
 			self.world.setPdGains(np.abs(self.v_to_w(kp0)), np.abs(self.v_to_w(kd0)))
@@ -131,6 +138,7 @@ class Simulator():
 			self.world.integrate()
 			
 			current_torque = self.v_to_s(self.world.getPdForce())
+			print(current_torque)
 			# print(current_torque)
 			done = [(m or M) or abs(tau) < max_t for m, M, tau, max_t in zip(is_min, is_max, current_torque, max_torque)] 
 			for i in range(n_dof):
