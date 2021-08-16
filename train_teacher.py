@@ -1,4 +1,6 @@
 
+# python3 train_teacher.py ; python3 train_student.py
+
 from environments.dog_env import DogEnv
 from config import Config
 
@@ -61,6 +63,17 @@ class CustomCallback(BaseCallback):
 
 from my_ppo import MyPPO, TeacherActorCriticPolicy
 
+from environments.dog_env import DogEnv_follow
+from my_ppo import MyPPO, MotorActorCriticPolicy
+from config import Config
+
+
+def create_dog_env ():
+	config = Config("follow_0", models_names=["follower/PPO"])
+	env = DogEnv_follow(debug=False)
+	motor_model = MyPPO.load(config.models_best_path["follower/PPO"], env=env, policy=MotorActorCriticPolicy)
+	return Monitor(DogEnv(motor_model=motor_model))
+
 
 if __name__ == "__main__":
 	
@@ -69,8 +82,14 @@ if __name__ == "__main__":
 		print("working !!")
 		exit()
 
-	config = Config("exp_3", models_names=["teacher/PPO", "teacher/tensorboard"])
-	env = SubprocVecEnv([lambda : Monitor(DogEnv()) for i in range(2)])
+	config = Config("follow_0", models_names=["follower/PPO"])
+	env = DogEnv_follow(debug=False)
+	motor_model = MyPPO.load(config.models_best_path["follower/PPO"], env=env, policy=MotorActorCriticPolicy)
+
+
+	config = Config("exp_0", models_names=["teacher/PPO", "teacher/tensorboard"])
+	# env = SubprocVecEnv([lambda : Monitor(DogEnv(motor_model=motor_model)) for i in range(2)])
+	env = SubprocVecEnv([create_dog_env for i in range(2)])
 	default_env = DogEnv(debug=False)
 	
 	

@@ -9,7 +9,7 @@ import itertools
 
 import matplotlib.pyplot as plt
 
-config = Config("exp_3", models_names=["teacher/PPO"])
+config = Config("exp_0", models_names=["teacher/PPO"])
 env = DogEnv(debug=False)
 
 model = MyPPO.load(config.models_best_path["teacher/PPO"], env=env, policy=TeacherActorCriticPolicy)
@@ -39,7 +39,7 @@ def exec_test (env_setup):
 env_setup={
 	"kp":60,
 	"kd_fac":0.05,
-	# "base_state" : np.asarray([0, 0, 0.6, 0, 0, 0, 1]),
+	"base_state" : np.asarray([0, 0, 0.35, 0, 0, 0, 1]),
 	# "reset_base" : True,
 	# "update_phase": False,
 	# "phase": np.pi,
@@ -51,6 +51,7 @@ env_setup={
 if True:
 	for i in range(100):
 		env_setup = {
+			# "base_state" : np.asarray([0, 0, 0.6, 0, 0, 0, 1]),
 			"foot_f": [0.1]*4,
 			"gravity": [0, 0.1*i, -9.81],
 		}

@@ -145,11 +145,14 @@ def fix_parameters (student_model):
 if __name__ == "__main__":
 
 	env = DogEnv(debug=False)
-	config = Config("exp_3", models_names=["teacher/PPO", "student/model", "student/tensorboard"])
+	config = Config("exp_0", models_names=["teacher/PPO", "student/model", "student/tensorboard"])
 	model = PPO.load(config.models_best_path["teacher/PPO"])
 
+	new_states = [State() for i in range(10)]
+	for state in new_states:
+		state.update_t = int(np.random.random()*3)
 
-	env.sim.all_states = env.sim.all_states + [State() for i in range(10)]
+	env.sim.all_states = env.sim.all_states + new_states
 	all_obs_gen = [RealisticObsGenerator(state) for state in env.sim.all_states]
 	
 	student = StudentModule(env.get_box_space(all_obs_gen[0].obs_dim))

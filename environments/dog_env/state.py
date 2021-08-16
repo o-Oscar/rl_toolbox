@@ -9,6 +9,7 @@ class State:
 		self.reset()
 		self.reference_bag = ReferenceBag()
 		self.sim_args = {}
+		self.update_t = 9 # 10-1
 		
 	def reset (self, phase=0, frame=0):
 		self.qpos = [0] * 19

@@ -18,7 +18,7 @@ def get_rotation (up_vect):
 	return r
 
 
-filename = "2021_07_18_16h10m07s_LogFile.hdf5"#.format(dt_string)
+filename = "2021_08_08_11h42m53s_LogFile.hdf5"#.format(dt_string)
 path = os.path.join("src", "logs", filename)
 print("reading")
 f = h5py.File(path, "r")

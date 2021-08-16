@@ -13,8 +13,9 @@ import matplotlib.pyplot as plt
 
 render = True
 
-config = Config("exp_3", models_names=["student/model"])
+config = Config("exp_0", models_names=["student/model"])
 env = DogEnv(debug=render)
+env.state.update_t = 3
 obs_gen = RealisticObsGenerator(env.state)
 # model = student_models.simple_student_model(env.obs_dim)
 model = StudentModule(env.get_box_space(obs_gen.obs_dim))
@@ -29,7 +30,7 @@ env_setup={
 	# "phase": np.pi,
 	"foot_f": [0.1]*4,
 	# "action" : np.asarray([0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0])
-	"gravity": [0, 0, -9.1],
+	"gravity": [0, 0, -9.81],
 }
 
 obs = env.reset(env_setup)

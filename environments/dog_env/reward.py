@@ -8,10 +8,23 @@ class FullRewStandard:
 		
 	def step (self):
 		steps = [x.step() * x.a for x in self.all_rew_inst]
-		return 1. + np.sum(steps) # 1 
+		return 1. + np.sum(steps) # 1.3 ?
 	
 	def done (self):
 		return bool(np.any([x.done() for x in self.all_rew_inst]))
+
+class FollowRew:
+	def __init__ (self, state):
+		self.state = state
+		
+	def step (self):
+		delta_up_vect = self.state.loc_up_vect - self.state.logged_fall["all_up"][self.state.frame]
+		delta_leg_qpos = self.state.joint_rot - self.state.logged_fall["all_leg_qpos"][self.state.frame]
+		delta = np.concatenate((delta_up_vect, delta_leg_qpos/10))
+		return np.exp(-np.sum(np.square(delta/15)*10000))
+	
+	def done (self):
+		return self.state.frame+1 == self.state.logged_fall["actions"].shape[0]
 
 class BodyContactRew:
 	def __init__(self, state):

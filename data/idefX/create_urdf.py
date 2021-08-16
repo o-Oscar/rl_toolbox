@@ -213,31 +213,32 @@ def add_ground (robot) :
 	
 	return name
 
+use_mesh = True
 objects = {
 	"trunk": {
 		"mass" : "7.5",
 		"inertia" : [0.05, 0, 0, 0.05, 0, 0.05],
-		"use_mesh" : True,
+		"use_mesh" : use_mesh,
 	},
 	"motor": {
 		"mass" : "0.7",
 		"inertia" : [0.00184, 0, 0, 0.00184, 0, 0.0035],
-		"use_mesh" : True,
+		"use_mesh" : use_mesh,
 	},
 	"arm": {
 		"mass" : "0.2",
 		"inertia" : [0.0002, 0, 0, 0.0002, 0, 0.00008],
-		"use_mesh" : True,
+		"use_mesh" : use_mesh,
 	},
 	"forearm": {
 		"mass" : "0.1",
 		"inertia" : [0.0001, 0, 0, 0.0001, 0, 0.00004],
-		"use_mesh" : True,
+		"use_mesh" : use_mesh,
 	},
 	"foot": {
 		"mass" : "0.01",
 		"inertia" : [0.000006, 0, 0, 0.000006, 0, 0.000006],
-		"use_mesh" : True,
+		"use_mesh" : use_mesh,
 		"use_collision" : True,
 	},
 }

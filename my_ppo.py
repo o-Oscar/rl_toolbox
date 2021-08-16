@@ -78,6 +78,7 @@ class MyPPO(OnPolicyAlgorithm):
 		policy: Union[str, Type[ActorCriticPolicy]],
 		env: Union[GymEnv, str],
 		default_env: Union[GymEnv, None] = None,
+		sym_coef:float = 0, 
 		learning_rate: Union[float, Schedule] = 3e-4,
 		n_steps: int = 2048,
 		batch_size: Optional[int] = 64,
@@ -159,6 +160,7 @@ class MyPPO(OnPolicyAlgorithm):
 		self.target_kl = target_kl
 
 		self.default_env = default_env
+		self.sym_coef = sym_coef
 
 		if _init_setup_model:
 			self._setup_model()
@@ -238,7 +240,7 @@ class MyPPO(OnPolicyAlgorithm):
 				sym_loss = th.mean(th.square(sym_act - self.policy._predict(rollout_data.observations, deterministic=True)), dim=1)
 				sym_loss = th.mean(sym_loss, dim=0)
 
-				policy_loss = policy_loss + sym_loss * 1
+				policy_loss = policy_loss + sym_loss * self.sym_coef
 
 				sym_losses.append(sym_loss.item())
 
@@ -396,10 +398,41 @@ class TeacherActorCriticPolicy(ActorCriticPolicy):
 			**kwargs,
 		)
 		# Disable orthogonal initialization
-		print(observation_space)
 		self.ortho_init = False
 
 	def _build_mlp_extractor(self) -> None:
 		self.mlp_extractor = TeacherMlpExtractor(self.observation_space)
+		# self.mlp_extractor = TeacherMlpExtractor(self.features_dim)
+
+
+from models import MotorMlpExtractor
+class MotorActorCriticPolicy(ActorCriticPolicy):
+	def __init__(
+		self,
+		observation_space: gym.spaces.Space,
+		action_space: gym.spaces.Space,
+		lr_schedule: Callable[[float], float],
+		net_arch: Optional[List[Union[int, Dict[str, List[int]]]]] = None,
+		activation_fn: Type[nn.Module] = nn.Tanh,
+		*args,
+		**kwargs,
+	):
+
+		super(MotorActorCriticPolicy, self).__init__(
+			observation_space,
+			action_space,
+			lr_schedule,
+			net_arch,
+			activation_fn,
+			# Pass remaining arguments to base class
+			features_extractor_class=DoNothingExtractor,
+			*args,
+			**kwargs,
+		)
+		# Disable orthogonal initialization
+		self.ortho_init = False
+
+	def _build_mlp_extractor(self) -> None:
+		self.mlp_extractor = MotorMlpExtractor(self.observation_space)
 		# self.mlp_extractor = TeacherMlpExtractor(self.features_dim)
 

@@ -152,6 +152,40 @@ class VfGenerator (ObsGen):
 			a = b
 		return to_return.astype(np.float32)
 
+class MotorGenerator (ObsGen):
+	def __init__ (self, state):
+		self.state = state
+		
+		self.sub_gen_class = [	
+								JointDelta,
+								JointSpeed,
+
+								Phase,
+								LocalUp,
+
+								FootClearance, 
+								FootNormal,
+								]
+		self.sub_gen = [Gen(self.state) for Gen in self.sub_gen_class]
+		
+		self.obs_dim = sum([gen.obs_dim for gen in self.sub_gen])
+	
+	def reset (self):
+		for gen in self.sub_gen:
+			gen.reset()
+	
+	def generate (self):
+		return np.concatenate([gen.generate() for gen in self.sub_gen])
+	
+	def get_sym_obs_matrix (self):
+		to_return = np.zeros((self.obs_dim, self.obs_dim))
+		a = 0
+		for gen in self.sub_gen:
+			b = a + gen.obs_dim
+			to_return[a:b,a:b] = gen.get_sym_obs_matrix()
+			a = b
+		return to_return.astype(np.float32)
+
 
 
 # -------------------------------------------- Joint related --------------------------------------------

@@ -99,6 +99,41 @@ class TeacherMlpExtractor (nn.Module): # holds two extractors, one for the actor
 		return self.pi_network(obs)[0], self.vf_network(obs)
 
 
+class MotorMonoExtractor (nn.Module): # preprocesses the observation only observed in observation before passing it to the main_network.
+	def __init__(
+		self,
+		obs_space: gym.spaces.Space,
+	):
+		super(MotorMonoExtractor, self).__init__()
+
+		motor_size = obs_space["motor_obs"].low.shape[0]
+		self.main_network = DenseNetwork([motor_size, 64, 64], "relu")
+
+		# IMPORTANT:
+		# Save output dimensions, used to create the distributions
+		self.out_size = self.main_network.all_dims[-1]
+
+	def forward(self, obs: th.Tensor) -> th.Tensor:
+		return self.main_network(obs["motor_obs"])
+
+class MotorMlpExtractor (nn.Module): # holds two extractors, one for the actor, one for the value function
+	def __init__(
+		self,
+		obs_space: gym.spaces.Space,
+	):
+		super(MotorMlpExtractor, self).__init__()
+
+		self.pi_network = MotorMonoExtractor(obs_space)
+		self.vf_network = VfExtractor(obs_space)
+
+		# IMPORTANT:
+		# Save output dimensions, used to create the distributions
+		self.latent_dim_pi = self.pi_network.out_size
+		self.latent_dim_vf = self.vf_network.out_size
+
+	def forward(self, obs: th.Tensor) -> Tuple[th.Tensor, th.Tensor]:
+		return self.pi_network(obs), self.vf_network(obs)
+
 
 
 
@@ -142,20 +177,20 @@ def conv_student_model (inn_size, out_size):
 	# sum_l=1^L((k_l-1)*prod_i=1^l-1(s_i))
 	# k_l : les kernel_size
 	# s_i : les stride_size
-	n_channels = 32
+	n_channels = 16
 	return nn.Sequential(
 			CausalConv1d(inn_size, n_channels, 5, stride=1, dilation=1),
 			nn.ReLU(),
-			CausalConv1d(n_channels, n_channels, 5, stride=1, dilation=1),
-			nn.ReLU(),
+			# CausalConv1d(n_channels, n_channels, 5, stride=1, dilation=1),
+			# nn.ReLU(),
 			CausalConv1d(n_channels, n_channels, 5, stride=1, dilation=2),
 			nn.ReLU(),
-			CausalConv1d(n_channels, n_channels, 5, stride=1, dilation=1),
+			# CausalConv1d(n_channels, n_channels, 5, stride=1, dilation=1),
+			# nn.ReLU(),
+			CausalConv1d(n_channels, out_size, 5, stride=1, dilation=4),
 			nn.ReLU(),
-			CausalConv1d(n_channels, n_channels, 5, stride=1, dilation=4),
-			nn.ReLU(),
-			CausalConv1d(n_channels, out_size, 5, stride=1, dilation=1),
-			nn.ReLU(),
+			# CausalConv1d(n_channels, out_size, 5, stride=1, dilation=1),
+			# nn.ReLU(),
 		)
 
 
