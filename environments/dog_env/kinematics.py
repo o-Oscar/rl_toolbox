@@ -5,7 +5,7 @@ class Kinematics():
 		self.state = state
 		self.zero_pos = np.asarray([0, np.pi*0.2, -np.pi*0.4] * 4)
 		self.full_range = np.asarray([np.pi*25/180, np.pi*45/180, np.pi*45/180] * 4)
-		self.adjustement_range = np.asarray([np.pi*25/180, np.pi*45/180, np.pi*45/180] * 4)# / 2
+		self.adjustement_range = np.asarray([np.pi*25/180, np.pi*45/180, np.pi*45/180] * 4) * 2 # / 2
 		
 		# self.use_reference = True
 		self.ref_name = "in_place"

@@ -30,8 +30,10 @@ class RealisticObsGenerator (ObsGen):
 		self.state = state
 		
 		self.sub_gen_class = [	JointTarget,
-								JointDelta,
-								JointPos,
+								# JointDelta,
+								# JointPos,
+								JointFlexibleDelta,
+								JointFlexiblePos,
 								# JointSpeed, # <- to remove
 								
 								Phase,
@@ -72,12 +74,11 @@ class SimObsGenerator (ObsGen):
 		self.state = state
 		
 		self.sub_gen_class = [	
-								# JointSpeed,
-								# RotVel,
-								# Height,
-								# LocPosVel,
+								RotVel,
+								Height,
+								LocPosVel,
 								FootFric,
-								# FootClearance, 
+								FootClearance, 
 								# FootNormal,
 								MotorConsts, 
 								GravityOffset,
@@ -86,6 +87,8 @@ class SimObsGenerator (ObsGen):
 								# JointTarget,
 								# JointDelta,
 								# JointPos,
+								JointSpeed,
+								JointHiddenDelta,
 								
 								# Phase,
 								# # RandLocalUp,
@@ -123,6 +126,7 @@ class VfGenerator (ObsGen):
 		
 		self.sub_gen_class = [	
 								JointSpeed,
+								JointHiddenDelta,
 								RotVel,
 								Height,
 								LocPosVel,
@@ -241,6 +245,27 @@ class JointPos (ObsGen):
 	def get_sym_obs_matrix (self):
 		return switch_legs
 
+class JointFlexiblePos (ObsGen):
+	def __init__ (self, state):
+		self.state = state
+		self.obs_dim = 12
+		self.mean = np.asarray([0., 0.628, -1.257] * 4)
+		self.kp = np.asarray([200, 200, 200] * 4)
+	def generate (self):
+		return np.asarray(self.state.joint_rot) + np.asarray(self.state.joint_torque)/self.kp - self.mean
+	def get_sym_obs_matrix (self):
+		return switch_legs
+
+class JointFlexibleDelta (ObsGen):
+	def __init__ (self, state):
+		self.state = state
+		self.obs_dim = 12
+		self.kp = np.asarray([200, 200, 200] * 4)
+	def generate (self):
+		return np.asarray(self.state.joint_target) - (np.asarray(self.state.joint_rot) + np.asarray(self.state.joint_torque)/self.kp)
+	def get_sym_obs_matrix (self):
+		return switch_legs
+
 class JointSpeed (ObsGen):
 	def __init__ (self, state):
 		self.state = state
@@ -250,6 +275,15 @@ class JointSpeed (ObsGen):
 	def get_sym_obs_matrix (self):
 		return switch_legs
 	
+class JointHiddenDelta (ObsGen):
+	def __init__ (self, state):
+		self.state = state
+		self.obs_dim = 12
+	def generate (self):
+		return np.asarray(self.state.joint_target) - np.asarray(self.state.joint_rot)
+	def get_sym_obs_matrix (self):
+		return switch_legs
+
 class LastAction (ObsGen):
 	def __init__ (self, state):
 		self.state = state
@@ -297,11 +331,14 @@ class RandLocalUp (ObsGen):
 		self.state = state
 		self.obs_dim = 3
 	def reset (self):
-		s = 3
+		s = 1
 		self.random_r = R.from_euler('zyx', np.random.uniform(-s,s, size=(3,)), degrees=True)
+		# self.random_r = R.from_euler('zyx', [0, 10, 0], degrees=True)
 	def generate (self):
 		# print(self.random_r.apply(np.asarray(self.state.loc_up_vect)))
-		return self.random_r.apply(np.asarray(self.state.loc_up_vect))
+		s = 1
+		self.noise_r = R.from_euler('zyx', np.random.normal(scale=s, size=(3,)), degrees=True)
+		return self.noise_r.apply(self.random_r.apply(np.asarray(self.state.loc_up_vect)))
 		# return np.asarray([0, 0, 1])
 	def get_sym_obs_matrix(self):
 		return np.diag([1, -1, 1])

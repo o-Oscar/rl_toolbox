@@ -62,7 +62,7 @@
 		<child link="trunk"/>
 	</joint>
 	<joint name="FL_first_motor_joint" type="fixed">
-		<origin rpy="0 0 0" xyz="0.15250000000000002 0.075 0.0"/>
+		<origin rpy="0 0 0" xyz="0.15250000000000002 0.0575 0.0"/>
 		<parent link="trunk"/>
 		<child link="FL_first_motor"/>
 	</joint>
@@ -81,7 +81,7 @@
 		</inertial>
 	</link>
 	<joint name="FL_clavicle_joint" type="revolute">
-		<origin rpy="0 0 0" xyz="0.225 0.075 -0.0"/>
+		<origin rpy="0 0 0" xyz="0.225 0.0575 -0.0"/>
 		<parent link="trunk"/>
 		<child link="FL_clavicle"/>
 		<axis xyz="1 0 0"/>
@@ -191,7 +191,7 @@
 		</inertial>
 	</link>
 	<joint name="FR_first_motor_joint" type="fixed">
-		<origin rpy="0 0 0" xyz="0.15250000000000002 -0.075 0.0"/>
+		<origin rpy="0 0 0" xyz="0.15250000000000002 -0.0575 0.0"/>
 		<parent link="trunk"/>
 		<child link="FR_first_motor"/>
 	</joint>
@@ -210,7 +210,7 @@
 		</inertial>
 	</link>
 	<joint name="FR_clavicle_joint" type="revolute">
-		<origin rpy="0 0 0" xyz="0.225 -0.075 -0.0"/>
+		<origin rpy="0 0 0" xyz="0.225 -0.0575 -0.0"/>
 		<parent link="trunk"/>
 		<child link="FR_clavicle"/>
 		<axis xyz="1 0 0"/>
@@ -320,7 +320,7 @@
 		</inertial>
 	</link>
 	<joint name="BL_first_motor_joint" type="fixed">
-		<origin rpy="0 0 0" xyz="-0.15250000000000002 0.075 0.0"/>
+		<origin rpy="0 0 0" xyz="-0.15250000000000002 0.0575 0.0"/>
 		<parent link="trunk"/>
 		<child link="BL_first_motor"/>
 	</joint>
@@ -339,7 +339,7 @@
 		</inertial>
 	</link>
 	<joint name="BL_clavicle_joint" type="revolute">
-		<origin rpy="0 0 0" xyz="-0.225 0.075 -0.0"/>
+		<origin rpy="0 0 0" xyz="-0.225 0.0575 -0.0"/>
 		<parent link="trunk"/>
 		<child link="BL_clavicle"/>
 		<axis xyz="1 0 0"/>
@@ -449,7 +449,7 @@
 		</inertial>
 	</link>
 	<joint name="BR_first_motor_joint" type="fixed">
-		<origin rpy="0 0 0" xyz="-0.15250000000000002 -0.075 0.0"/>
+		<origin rpy="0 0 0" xyz="-0.15250000000000002 -0.0575 0.0"/>
 		<parent link="trunk"/>
 		<child link="BR_first_motor"/>
 	</joint>
@@ -468,7 +468,7 @@
 		</inertial>
 	</link>
 	<joint name="BR_clavicle_joint" type="revolute">
-		<origin rpy="0 0 0" xyz="-0.225 -0.075 -0.0"/>
+		<origin rpy="0 0 0" xyz="-0.225 -0.0575 -0.0"/>
 		<parent link="trunk"/>
 		<child link="BR_clavicle"/>
 		<axis xyz="1 0 0"/>

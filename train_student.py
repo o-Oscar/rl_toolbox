@@ -15,7 +15,7 @@ from models import StudentModule
 
 p_student = 0.5
 log_std = -2
-h = 5 # 30
+h = 30
 all_p_student = []
 
 
@@ -49,10 +49,12 @@ def generate_dataset (teacher, student, env, all_obs_gen):
 	latent_dataset = []
 	
 	i = 0
-	while i < 5:
+	while i < 1:
 	
 		done = False
 		increase_student_prob = False
+		f.write("\nreseting\n")
+		f.flush()
 		obs = env.reset()
 		for gen in all_obs_gen:
 			gen.reset()
@@ -73,6 +75,8 @@ def generate_dataset (teacher, student, env, all_obs_gen):
 		print("log_std :", log_std)
 		# while not done and t < 50: # 200
 		while t < 200:
+			f.write(str(t) +  " ")
+			f.flush()
 			t += 1
 			
 			# obs = obs.astype(np.float32)
@@ -80,20 +84,24 @@ def generate_dataset (teacher, student, env, all_obs_gen):
 			all_obs.append(np.stack([gen.generate() for gen in all_obs_gen]))
 			stacked_obs = np.stack(all_obs, axis=1).astype(np.float32)
 			
-			# --- stepping the simulation ---
-			# teacher_action = teacher(th.tensor(np.expand_dims(obs, axis=0)))
-			teacher_action = model.predict(obs, deterministic=True)[0]
-			teacher_latent = model.policy.mlp_extractor.pi_network.sim_network(th.tensor(obs["sim_obs"].astype(np.float32)))
-			# print(teacher_latent.shape)
-			# teacher_action = teacher({key:np.expand_dims(x, axis=0) for key, x in obs.items()})
-			obs_id = int(np.random.random()*len(all_obs_gen))
-			student_action = student(th.tensor(stacked_obs))[0][obs_id, -1].numpy()
-			if np.random.random() < p_student or True:
-				rand_action = student_action
-			else:
-				rand_action = teacher_action
-			rand_action = rand_action + np.random.normal(size=rand_action.shape) * np.exp(log_std)
-			obs, rewards, done, info = env.step(rand_action)
+			if not done:
+				# --- stepping the simulation ---
+				# teacher_action = teacher(th.tensor(np.expand_dims(obs, axis=0)))
+				teacher_action = model.predict(obs, deterministic=True)[0]
+				teacher_latent = model.policy.mlp_extractor.pi_network.sim_network(th.tensor(obs["sim_obs"].astype(np.float32)))
+				# print(teacher_latent.shape)
+				# teacher_action = teacher({key:np.expand_dims(x, axis=0) for key, x in obs.items()})
+				obs_id = int(np.random.random()*len(all_obs_gen))
+				student_action = student(th.tensor(stacked_obs))[0][obs_id, -1].numpy()
+				if np.random.random() < p_student or True:
+					rand_action = student_action
+				else:
+					rand_action = teacher_action
+				rand_action = rand_action + np.random.normal(size=rand_action.shape) * np.exp(log_std)
+				obs, rewards, done, info = env.step(rand_action)
+			if done:
+				f.write("done ")
+				f.flush()
 			# done = False
 			increase_student_prob = increase_student_prob or done
 				
@@ -141,8 +149,9 @@ def fix_parameters (student_model):
 	for param in student_model.mlp_extractor.main_network.parameters():
 		param.requires_grad = False
 
-
 if __name__ == "__main__":
+
+	f = open("debug.txt", "w")
 
 	env = DogEnv(debug=False)
 	config = Config("exp_0", models_names=["teacher/PPO", "student/model", "student/tensorboard"])
@@ -157,10 +166,11 @@ if __name__ == "__main__":
 	
 	student = StudentModule(env.get_box_space(all_obs_gen[0].obs_dim))
 	student_optimize = StudentModule(env.get_box_space(all_obs_gen[0].obs_dim))
-	# print(model.policy.action_net.state_dict().keys())
-	# print(model.policy.mlp_extractor.pi_network.main_network.state_dict().keys())
-	# print(student_module.action_net.state_dict().keys())
-	# print(student_module.mlp_extractor.main_network.state_dict().keys())
+	if False:
+		src_config = Config("exp_0", models_names=["student_src/model"])
+		student.load_state_dict(th.load(src_config.models_best_path["student_src/model"]))
+		student_optimize.load_state_dict(th.load(src_config.models_best_path["student_src/model"]))
+
 
 	# setting the parameters of the main_network of the student_model
 	with th.no_grad():
@@ -185,26 +195,86 @@ if __name__ == "__main__":
 
 	# optimizer = th.optim.Adam(student.parameters(), lr=0.0001)
 
-	alpha = 0.9
-	for i in range(80):
+	all_obs_dataset = []
+	all_act_dataset = []
+	all_act_student_dataset = []
+	all_latent_dataset = []
+	all_mask_dataset = []
+
+	batch_size = 16
+
+	# for i in range(batch_size-1):
+	# 	with th.no_grad():
+	# 		obs_dataset, act_dataset, act_student_dataset, latent_dataset, mask_dataset = generate_dataset(model, student, env, all_obs_gen)
+	# 		all_obs_dataset.append(obs_dataset)
+	# 		all_act_dataset.append(act_dataset)
+	# 		all_act_student_dataset.append(act_student_dataset)
+	# 		all_latent_dataset.append(latent_dataset)
+	# 		all_mask_dataset.append(mask_dataset)
+
+	alpha = 1
+	optimizer = th.optim.Adam(student_optimize.parameters(), lr=0.001, weight_decay=1e-6)
+
+	first_run = True
+	p = np.zeros((0,))
+	p_alpha = 0.6
+
+	for i in range(100):
 		print("Step {}:".format(i))
 		with th.no_grad():
-			obs_dataset, act_dataset, act_student_dataset, latent_dataset, mask_dataset = generate_dataset(model, student, env, all_obs_gen)
+			for j in range(batch_size):
+				obs_dataset, act_dataset, act_student_dataset, latent_dataset, mask_dataset = generate_dataset(model, student, env, all_obs_gen)
+
+				all_obs_dataset.append(obs_dataset)
+				all_act_dataset.append(act_dataset)
+				all_act_student_dataset.append(act_student_dataset)
+				all_latent_dataset.append(latent_dataset)
+				all_mask_dataset.append(mask_dataset)
+
+			# all_obs_dataset = all_obs_dataset[1:]
+			# all_act_dataset = all_act_dataset[1:]
+			# all_act_student_dataset = all_act_student_dataset[1:]
+			# all_latent_dataset = all_latent_dataset[1:]
+			# all_mask_dataset = all_mask_dataset[1:]
+
+			n_exp = len(all_obs_dataset)
 		with th.no_grad():
 			state_dict = student.state_dict()
 			student_optimize.load_state_dict(state_dict)
 
-		optimizer = th.optim.Adam(student_optimize.parameters(), lr=0.001)
-		print("Test : ", th.mean(th.mean(th.square(student_optimize(obs_dataset)[0]-act_student_dataset), 2) * mask_dataset).detach().numpy())
-		for j in range(100):
-			pred, lat_pred = student_optimize(obs_dataset)
-			# pred = student(obs_dataset)
-			act_loss = th.mean(th.mean(th.square(act_dataset-pred), 2) * mask_dataset)
-			lat_loss = th.mean(th.mean(th.square(latent_dataset-lat_pred), 2) * mask_dataset)
+		if first_run:
+			p = np.ones((batch_size,)) / batch_size
+			first_run = False
+		else:
+			p = np.concatenate((p*(1-p_alpha), np.ones((batch_size,))*p_alpha/batch_size))
+
+		# print("Test : ", th.mean(th.mean(th.square(student_optimize(full_obs_dataset)[0]-full_act_student_dataset), 2) * full_mask_dataset).detach().numpy())
+		N = 100
+		for j in range(N):
 			optimizer.zero_grad()
+			
+			train_indices = np.random.choice(n_exp, batch_size, replace=False, p=p).astype(int) # p=
+			# start = max(0, len(all_obs_dataset)-batch_size*3)
+			# train_indices = list(range(start, len(all_obs_dataset)))
+			print(train_indices)
+
+			full_obs_dataset = th.tensor(np.concatenate([all_obs_dataset[i] for i in train_indices], axis=0))
+			full_act_dataset = th.tensor(np.concatenate([all_act_dataset[i] for i in train_indices], axis=0))
+			full_act_student_dataset = th.tensor(np.concatenate([all_act_student_dataset[i] for i in train_indices], axis=0))
+			full_latent_dataset = th.tensor(np.concatenate([all_latent_dataset[i] for i in train_indices], axis=0))
+			full_mask_dataset = th.tensor(np.concatenate([all_mask_dataset[i] for i in train_indices], axis=0))
+
+			pred, lat_pred = student_optimize(full_obs_dataset)
+			# pred = student(obs_dataset)
+
+			# dist = th.sqrt(th.sum(th.square(full_act_dataset-full_act_student_dataset), 2, keepdim=True))
+			# pred_targ = full_act_student_dataset + th.minimum(dist, th.tensor(0.1)) * (full_act_dataset-full_act_student_dataset) / (dist+1e-6)
+
+			act_loss = th.mean(th.mean(th.square(full_act_dataset-pred), 2) * full_mask_dataset)
+			lat_loss = th.mean(th.mean(th.square(full_latent_dataset-lat_pred), 2) * full_mask_dataset)
 
 			sym_obs_matrix = all_obs_gen[0].get_sym_obs_matrix()
-			sym_obs = th.matmul(obs_dataset, th.from_numpy(sym_obs_matrix))
+			sym_obs = th.matmul(full_obs_dataset, th.from_numpy(sym_obs_matrix))
 			sym_act = th.matmul(student_optimize(sym_obs)[0], th.from_numpy(switch_legs))
 
 			# sym_loss = th.mean(th.square(sym_act - self.policy._predict(rollout_data.observations).detach()), dim=1)
@@ -216,25 +286,35 @@ if __name__ == "__main__":
 			loss.backward()
 
 			optimizer.step()
-		print("Step: {}, Initial Loss: {}".format(j, loss.detach().numpy()))
-		
-		writer.add_scalar('train_student/act_loss', act_loss.detach().numpy(), i)
-		writer.add_scalar('train_student/lat_loss', lat_loss.detach().numpy(), i)
-		writer.add_scalar('train_student/sym_loss', sym_loss.detach().numpy(), i)
-		writer.add_scalar('train_student/loss', loss.detach().numpy(), i)
+
+			print("Step: {}, Initial Loss: {}".format(j, loss.detach().numpy()))
+			
+			writer.add_scalar('train_student/act_loss', act_loss.detach().numpy(), i*N+j)
+			writer.add_scalar('train_student/lat_loss', lat_loss.detach().numpy(), i*N+j)
+			writer.add_scalar('train_student/sym_loss', sym_loss.detach().numpy(), i*N+j)
+			writer.add_scalar('train_student/loss', loss.detach().numpy(), i*N+j)
+
 		writer.add_scalar('train_student/p_student', p_student, i)
 		writer.add_scalar('train_student/log_std', log_std, i)
-		writer.add_scalar('train_student/mean_ep_len', np.mean(np.sum(mask_dataset.detach().numpy(), axis=1), axis=0), i)
+		writer.add_scalar('train_student/mean_ep_len', np.mean(np.sum(np.concatenate(all_mask_dataset[-batch_size:], axis=0), axis=1), axis=0), i)
+
+		writer.flush()
 
 		# student_optimize.fit(obs_dataset, act_dataset, batch_size=30, epochs=100, verbose=2, shuffle=False)
 		
+		# with th.no_grad():
+		# 	state_dict_optimize = student_optimize.mlp_extractor.cnn_network.state_dict()
+		# 	state_dict = student.mlp_extractor.cnn_network.state_dict()
+		# 	for name in state_dict:
+		# 		state_dict[name] = state_dict[name] * (1-alpha) + state_dict_optimize[name] * alpha
+		# 	student.mlp_extractor.cnn_network.load_state_dict(state_dict)
+
 		with th.no_grad():
-			state_dict_optimize = student_optimize.mlp_extractor.cnn_network.state_dict()
-			state_dict = student.mlp_extractor.cnn_network.state_dict()
+			state_dict_optimize = student_optimize.state_dict()
+			state_dict = student.state_dict()
 			for name in state_dict:
 				state_dict[name] = state_dict[name] * (1-alpha) + state_dict_optimize[name] * alpha
-			student.mlp_extractor.cnn_network.load_state_dict(state_dict)
-
+			student.load_state_dict(state_dict)
 		
 		
 		print(student.action_net.state_dict()["bias"][0])

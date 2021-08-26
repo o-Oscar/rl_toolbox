@@ -322,12 +322,12 @@ def create_idefX ():
 		max_troque = 11 # N.m
 		
 		first_motor_name = strid+"_first_motor"
-		add_joint_wrapper (robot, trunk_name, first_motor_name, (facx*(0.34-0.035)/2, facy*0.075, 0.), (0, 0, 0), type="fixed")
+		add_joint_wrapper (robot, trunk_name, first_motor_name, (facx*(0.34-0.035)/2, facy*0.0575, 0.), (0, 0, 0), type="fixed")
 		add_link_wrapper(robot, first_motor_name, (0, 0, 0), (0, -np.pi/2, np.pi*(facx+1)/2), object="motor")
 		
 		
 		clavicle_name = strid+"_clavicle"
-		add_joint_wrapper (robot, trunk_name, clavicle_name, (facx*0.45/2, facy*0.075, -0.0), (0, 0, 0), (1, 0, 0))
+		add_joint_wrapper (robot, trunk_name, clavicle_name, (facx*0.45/2, facy*0.0575, -0.0), (0, 0, 0), (1, 0, 0))
 		add_link_wrapper(robot, clavicle_name, (0, facy*(0.05-0.035/2), 0), (0, -np.pi/2, np.pi/2 + np.pi*(facy+1)/2), object="motor")
 		
 		

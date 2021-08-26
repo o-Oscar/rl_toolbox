@@ -11,8 +11,11 @@ from torch import nn
 
 import matplotlib.pyplot as plt
 
+from my_ppo import switch_legs
+
 render = True
 
+src_config = Config("exp_0", models_names=["student_src/model"])
 config = Config("exp_0", models_names=["student/model"])
 env = DogEnv(debug=render)
 env.state.update_t = 3
@@ -28,12 +31,14 @@ env_setup={
 	# "reset_base" : True,
 	# "update_phase": False,
 	# "phase": np.pi,
-	"foot_f": [0.1]*4,
+	"foot_f": [0.4]*4,
 	# "action" : np.asarray([0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0])
 	"gravity": [0, 0, -9.81],
+	"push_f": 100,
 }
 
 obs = env.reset(env_setup)
+env.state.update_t = 0
 print(env.state.foot_f)
 obs_gen.reset()
 obs = obs_gen.generate()
@@ -54,9 +59,21 @@ for i in range(30000 if render else 300):
 	start = time.time()
 	with th.no_grad():
 		action = model(th.tensor(obs_stack.astype(np.float32)))[0].numpy()[0,-1]
+
+
+
+		# sym_obs = th.tensor(obs_stack.astype(np.float32) @ obs_gen.get_sym_obs_matrix())
+
+		# sym_action = model(sym_obs)[0].numpy()[0,-1]
+		# action = switch_legs @ sym_action
+
+
+
 		# action = action*0
 	obs, rew, done, _ = env.step(action)
 	obs = obs_gen.generate()
+
+
 
 	all_obs.append(obs)
 	obs_stack = np.expand_dims(np.stack(all_obs, axis=0), axis=0)
@@ -80,7 +97,7 @@ for i in range(30000 if render else 300):
 			to_plot[i].append(action[i])
 
 	if render:
-		while (time.time()-start < 0.03):
+		while (time.time()-start < 1/30):
 			pass 
 
 if not render:

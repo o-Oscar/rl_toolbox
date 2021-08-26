@@ -8,6 +8,7 @@ from .state import State
 from .obs_gen import TeacherObsGenerator
 from .reward import FullRewStandard
 		
+# git log --all --decorate --oneline --graph
 
 import gym
 from gym import spaces
@@ -65,10 +66,12 @@ class DogEnv(gym.Env):
 			"update_cmd": False, # out of date (probably)
 			"ref_name": "in_place",
 			"kin_use_reference" : True,
-			"phase" : 0,
+			# "phase" : 0,
 			# "kp" : 60,
 			# "kd_fac": 0.12,
-			# "gravity": [0, 0, -9.81],
+			"gravity": [0, 0, -9.81],
+			"foot_f": [0.4]*4,
+			"push_f": 250,
 		}
 		self.state.sim_args.update(sim_args)
 		

@@ -4,7 +4,7 @@ import gym
 import torch as th
 from torch import nn
 
-sim_out_size = 8
+sim_out_size = 16
 
 class DenseNetwork(nn.Module): # simple dense network
 	def __init__(
@@ -177,17 +177,17 @@ def conv_student_model (inn_size, out_size):
 	# sum_l=1^L((k_l-1)*prod_i=1^l-1(s_i))
 	# k_l : les kernel_size
 	# s_i : les stride_size
-	n_channels = 16
+	n_channels = 64
 	return nn.Sequential(
-			CausalConv1d(inn_size, n_channels, 5, stride=1, dilation=1),
+			CausalConv1d(inn_size, n_channels, 3, stride=1, dilation=1),
 			nn.ReLU(),
+			CausalConv1d(n_channels, n_channels, 3, stride=1, dilation=1),
+			# nn.ReLU(),
 			# CausalConv1d(n_channels, n_channels, 5, stride=1, dilation=1),
 			# nn.ReLU(),
-			CausalConv1d(n_channels, n_channels, 5, stride=1, dilation=2),
-			nn.ReLU(),
 			# CausalConv1d(n_channels, n_channels, 5, stride=1, dilation=1),
-			# nn.ReLU(),
-			CausalConv1d(n_channels, out_size, 5, stride=1, dilation=4),
+			nn.ReLU(),
+			CausalConv1d(n_channels, out_size, 3, stride=1, dilation=1),
 			nn.ReLU(),
 			# CausalConv1d(n_channels, out_size, 5, stride=1, dilation=1),
 			# nn.ReLU(),

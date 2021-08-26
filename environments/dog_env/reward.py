@@ -2,13 +2,13 @@ import numpy as np
 
 class FullRewStandard:
 	def __init__ (self, state):
-		self.all_rew_class = [BodyContactRew, FootLiftingRew, NotInclinedRew, InclinedRew, SpeedRew, RotRew, DoneAt400]#, MaxTorqueRew]#, FootSpeedRew, FootAccRew, TorqueRew] #, TorqueRew, FootSpeedRew, FootAccRew]#, RandDoneRew]
+		self.all_rew_class = [BodyContactRew, FootLiftingRew, NotInclinedRew, InclinedRew, SpeedRew, RotRew, DoneAt400, JointSpeed]#, MaxTorqueRew]#, FootSpeedRew, FootAccRew, TorqueRew] #, TorqueRew, FootSpeedRew, FootAccRew]#, RandDoneRew]
 		# self.all_rew_class = [BodyContactRew, NotInclinedRew, SpeedRew, RotRew, InclinedRew, TorqueRew, FootSpeedRew, FootAccRew]
 		self.all_rew_inst = [x(state) for x in self.all_rew_class]
 		
 	def step (self):
 		steps = [x.step() * x.a for x in self.all_rew_inst]
-		return 1. + np.sum(steps) # 1.3 ?
+		return 1. + np.sum(steps) + 1 # 1.3 ?
 	
 	def done (self):
 		return bool(np.any([x.done() for x in self.all_rew_inst]))
@@ -137,6 +137,21 @@ class TorqueRew:
 	def done (self):
 		return False
 
+class JointSpeed:
+	def __init__(self, state):
+		self.state = state
+		self.a = 0.003
+		
+	def step (self):
+		# torque = np.sum(np.abs(self.state.joint_torque))
+		# caped = max(torque-150, 0)
+		# return -min(1, np.sum(np.abs(self.state.joint_torque))/self.threshold)
+		return -np.sum(np.square(self.state.joint_rot_speed))# - self.state.reference_bag.get_ref("in_place", self.state.phase)[1][6:]))
+	
+	def done (self):
+		return False
+
+
 class VirtualTorqueRew:
 	def __init__(self, state):
 		self.state = state
@@ -176,7 +191,7 @@ class FootSpeedRew:
 		
 		
 		r = 0.4
-		v = 0.6
+		v = 0.4
 		dz = 0.06
 		self.m = np.asarray([-v, 0, -dz*2*self.state.f0/r]*4)
 		self.M = np.asarray([(1-r)/r*v, 0, dz*2*self.state.f0/r]*4)

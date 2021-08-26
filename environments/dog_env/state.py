@@ -46,8 +46,8 @@ class State:
 
 		self.phase = phase
 		self.frame = frame
-		self.f0 = 1.
-		# self.f0 = 1.5
+		# self.f0 = 1.
+		self.f0 = 1.5
 		
 		
 		self.loc_pos_speed = [0, 0, 0]

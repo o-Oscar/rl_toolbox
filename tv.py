@@ -18,7 +18,7 @@ def get_rotation (up_vect):
 	return r
 
 
-filename = "2021_08_08_11h42m53s_LogFile.hdf5"#.format(dt_string)
+filename = "2021_07_12_19h59m34s_LogFile.hdf5"#.format(dt_string)
 path = os.path.join("src", "logs", filename)
 print("reading")
 f = h5py.File(path, "r")
@@ -40,8 +40,16 @@ for key, value in f.items():
 	plt.plot(value[1:])
 	plt.show()
 """
+print(np.std(f["up_vect"], axis=0)*180/np.pi)
+print(np.mean(f["up_vect"], axis=0)*180/np.pi)
+plt.plot(f["up_vect"])
+plt.show()
+exit()
+
 while (True):
-	for leg_qpos, up_vect in zip(f["joint_rot"], f["up_vect"]):
+	# print(f.keys())
+	# for leg_qpos, up_vect in zip(f["joint_rot"], f["up_vect"]):
+	for leg_qpos, up_vect in zip(f["qpos"], f["up_vect"]):
 		# "base_state" in self.state.sim_args and "leg_pos"
 		h0 = 1
 		body_r = get_rotation(np.asarray([up_vect]))
