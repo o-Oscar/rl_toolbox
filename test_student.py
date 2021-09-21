@@ -25,16 +25,16 @@ model = StudentModule(env.get_box_space(obs_gen.obs_dim))
 model.load_state_dict(th.load(config.models_best_path["student/model"]))
 
 env_setup={
-	"kp":60,
-	"kd_fac": 0.12,
+	"kp":60, # 60
+	"kd_fac": 0.05, # 0.1
 	# "base_state" : np.asarray([0, 0, 0.4, 0, 0, 0, 1]),
 	# "reset_base" : True,
 	# "update_phase": False,
-	# "phase": np.pi,
+	"phase": np.pi,
 	"foot_f": [0.4]*4,
 	# "action" : np.asarray([0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0])
-	"gravity": [0, 0, -9.81],
-	"push_f": 100,
+	"gravity": [0, 0., -9.81],
+	"push_f": 0,
 }
 
 obs = env.reset(env_setup)
@@ -69,7 +69,7 @@ for i in range(30000 if render else 300):
 
 
 
-		# action = action*0
+		action = action*0
 	obs, rew, done, _ = env.step(action)
 	obs = obs_gen.generate()
 

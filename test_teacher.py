@@ -15,21 +15,20 @@ render = True
 # env = DogEnv_follow(debug=False)
 # motor_model = MyPPO.load(config.models_best_path["follower/PPO"], env=env, policy=MotorActorCriticPolicy)
 
-config = Config("exp_0", models_names=["teacher/PPO"])
+config = Config("exp_1", models_names=["teacher/PPO"])
 env = DogEnv(debug=render)#, motor_model=motor_model)
-
 
 env_setup={
 	"kp":60,
-	"kd_fac": 0.12,
-	# "base_state" : np.asarray([0, 0, 0.4, 0, 0, 0, 1]),
+	"kd_fac": 0.05,
+	"base_state" : np.asarray([0, 0, 0.4, 0, 0, 0, 1]),
 	# "reset_base" : True,
 	# "update_phase": False,
 	# "phase": np.pi,
-	"foot_f": [0.4]*4,
+	# "foot_f": [0.4]*4,
 	# "action" : np.asarray([0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0])
 	"gravity": [0, 0, -9.81],
-	"push_f": 0,
+	"push_f": 200,
 }
 
 
@@ -77,16 +76,18 @@ for i in range(300000 if render else 300):
 			to_plot[i+12].append(env.state.joint_torque[i])
 		for i in range(4):
 			to_plot[i+24].append(env.state.foot_force[i])
+		for i in range(12):
+			to_plot[i+36].append(action[i])
 
 	if render:
 		while (time.time()-start < 1/30):
 			pass
 
 if not render:
-	# for i in range(1,2):
-	# 	plt.plot(to_plot[i])
-	# 	plt.plot(to_plot[i+12])
-	# plt.show()
+	for i in range(12):
+		plt.plot(to_plot[i+36])
+		# plt.plot(to_plot[i+12])
+	plt.show()
 
 	# test = np.asarray(env.sim.all_forces).reshape((-1,12))
 	# print(np.mean(test, axis=1))

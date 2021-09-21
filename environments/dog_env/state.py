@@ -12,8 +12,8 @@ class State:
 		self.update_t = 9 # 10-1
 		
 	def reset (self, phase=0, frame=0):
-		self.qpos = [0] * 19
-		self.qvel = [0] * 18
+		# self.qpos = [0] * 19
+		# self.qvel = [0] * 18
 
 		self.base_pos = [0, 0, 0]
 		self.base_r = 0
@@ -46,8 +46,8 @@ class State:
 
 		self.phase = phase
 		self.frame = frame
-		# self.f0 = 1.
-		self.f0 = 1.5
+		# self.f0 = 1.5
+		self.f0 = 2
 		
 		
 		self.loc_pos_speed = [0, 0, 0]

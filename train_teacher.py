@@ -1,6 +1,11 @@
 
 # python3 train_teacher.py ; python3 train_student.py
 
+"""
+Last good train run : train it with high kp (60) first. Then wih low kp (45). Then student (with low kp)
+Mabe unnecessary.
+"""
+
 from environments.dog_env import DogEnv
 from config import Config
 
@@ -89,9 +94,9 @@ if __name__ == "__main__":
 	# env = DogEnv_follow(debug=False)
 	# motor_model = MyPPO.load(config.models_best_path["follower/PPO"], env=env, policy=MotorActorCriticPolicy)
 
-	src_config = Config("exp_0", models_names=["teacher/PPO", "teacher/tensorboard"])
+	src_config = Config("exp_0_highkp", models_names=["teacher/PPO", "teacher/tensorboard"])
 
-	config = Config("exp_0", models_names=["teacher/PPO", "teacher/tensorboard"])
+	config = Config("exp_1", models_names=["teacher/PPO", "teacher/tensorboard"])
 	env = SubprocVecEnv([lambda : Monitor(DogEnv()) for i in range(2)])
 	# env = SubprocVecEnv([create_dog_env for i in range(2)])
 	default_env = DogEnv(debug=False)

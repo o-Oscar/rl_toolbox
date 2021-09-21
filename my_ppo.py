@@ -9,7 +9,7 @@ from torch.nn import functional as F
 from stable_baselines3.common.on_policy_algorithm import OnPolicyAlgorithm
 from stable_baselines3.common.policies import ActorCriticPolicy
 from stable_baselines3.common.type_aliases import GymEnv, MaybeCallback, Schedule
-from stable_baselines3.common.utils import explained_variance, get_schedule_fn
+from stable_baselines3.common.utils import explained_variance, get_schedule_fn, get_device
 
 switch_legs = np.asarray([	[0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
 							[0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
@@ -162,6 +162,12 @@ class MyPPO(OnPolicyAlgorithm):
 		self.default_env = default_env
 		self.sym_coef = sym_coef
 
+		if self.default_env is not None:
+			dev = th.device(get_device())
+			self.sym_obs_matrixes = self.default_env.obs_gen.get_sym_obs_matrix()
+			self.sym_mats = {key:th.tensor(matrix, device=dev) for key, matrix in self.sym_obs_matrixes.items()}
+			self.dev_switch_legs = th.tensor(switch_legs, device=dev)
+
 		if _init_setup_model:
 			self._setup_model()
 
@@ -232,10 +238,10 @@ class MyPPO(OnPolicyAlgorithm):
 					policy_loss = -th.min(policy_loss_1, policy_loss_2).mean()
 				
 				# TODO : Add the symetric and stability loss here
-				sym_obs_matrixes = self.default_env.obs_gen.get_sym_obs_matrix()
-				sym_obs = {key:th.matmul(rollout_data.observations[key], th.from_numpy(matrix)) for key, matrix in sym_obs_matrixes.items()}
-				sym_act = th.matmul(self.policy._predict(sym_obs, deterministic=True), th.from_numpy(switch_legs))
-
+				
+				sym_obs = {key:th.matmul(rollout_data.observations[key], matrix) for key, matrix in self.sym_mats.items()}
+				sym_act = th.matmul(self.policy._predict(sym_obs, deterministic=True), self.dev_switch_legs)
+				
 				# sym_loss = th.mean(th.square(sym_act - self.policy._predict(rollout_data.observations).detach()), dim=1)
 				sym_loss = th.mean(th.square(sym_act - self.policy._predict(rollout_data.observations, deterministic=True)), dim=1)
 				sym_loss = th.mean(sym_loss, dim=0)

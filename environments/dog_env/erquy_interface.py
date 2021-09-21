@@ -4,44 +4,44 @@ import numpy as np
 import os
 
 class IdefXWorld ():
-	def __init__ (self, urdf_path, mesh_path):
+	def __init__ (self, urdf_path, mesh_path, use_flex=False):
 		self.world = erquy.World()
+		self.use_flex = use_flex
 
 		self.world.loadUrdf(urdf_path, mesh_path)
 
+		self.nq = self.world.nq()
+		self.nv = self.world.nv()
+
 		self.footFrameIdx = [self.world.getFrameIdxByName(strid+"_foot") for strid in ["FL", "FR", "BL", "BR"]]
 		
-		self.jointIdx = []
+		# print("trunk_joint :", self.world.getJointIdxByName("trunk_joint"))
+		# self.trunkIdx = self.world.getFrameIdxByName("trunk")
+		# print(self.world.getJointGeneralizedPosition(self.world.getJointIdxByName("trunk_joint")))
+
+
+		self.jointNames = []
 		for strid in ["FL", "FR", "BL", "BR"]:
 			for joint_type in ["clavicle", "arm", "forearm"]:
-				self.jointIdx.append(self.world.getJointIdxByName(strid+"_"+joint_type+"_joint"))
-		self.jointIdx = [id - min(self.jointIdx) for id in self.jointIdx]
-		self.trunkIdx = self.world.getFrameIdxByName("trunk")
-	
-		joint_fac = np.asarray([1, 1, 1, -1, 1, 1, 1, 1, 1, -1, 1, 1])
+				self.jointNames.append(strid+"_"+joint_type+"_joint")
 
-		self.q_to_w_ = np.zeros((self.world.nq(), self.world.nq()))
-		self.v_to_w_ = np.zeros((self.world.nv(), self.world.nv()))
-		self.q_to_w_[:7,:7] = np.identity(7)
-		self.v_to_w_[:6,:6] = np.identity(6)
-		for i, idx in enumerate(self.jointIdx):
-			self.q_to_w_[7+idx,7+i] = joint_fac[i]
-			self.v_to_w_[6+idx,6+i] = joint_fac[i]
+		self.jointIdx = [self.world.getJointIdxByName(name) for name in self.jointNames]
+		self.jointGeneralizedIdx = [self.world.getJointGeneralizedPosition(idx) for idx in self.jointIdx]
+		self.joint_facs = np.asarray([1, 1, 1, -1, 1, 1, 1, 1, 1, -1, 1, 1])
 
 
-		
-	def q_to_w (self, qpos):
-		return (self.q_to_w_ @ np.asarray(qpos).reshape((-1, 1))).reshape(np.asarray(qpos).shape)
-	def v_to_w (self, qvel):
-		return (self.v_to_w_ @  np.asarray(qvel).reshape((-1, 1))).reshape(np.asarray(qvel).shape)
-	def q_to_s (self, qpos):
-		return (self.q_to_w_.T @ np.asarray(qpos).reshape((-1, 1))).reshape(np.asarray(qpos).shape)
-	def v_to_s (self, qvel):
-		return (self.v_to_w_.T @  np.asarray(qvel).reshape((-1, 1))).reshape(np.asarray(qvel).shape)
+		self.flexNames = []
+		if self.use_flex:
+			for strid in ["FL", "FR", "BL", "BR"]:
+				for joint_type in ["clavicle", "arm", "forearm"]:
+					self.flexNames.append(strid+"_"+joint_type+"_inbetween_joint")
+
+		self.flexIdx = [self.world.getJointIdxByName(name) for name in self.flexNames]
+		self.flexGeneralizedIdx = [self.world.getJointGeneralizedPosition(idx) for idx in self.flexIdx]
 
 
 	def setGravity (self, gravity):
-		self.world.setGravity(gravity)
+		self.world.setGravity(np.asarray(gravity))
 	
 	def setTimeStep (self, timestep):
 		self.world.setTimeStep(timestep)
@@ -49,38 +49,92 @@ class IdefXWorld ():
 	def start_vizualizer (self, urdf_path, mesh_path):
 		self.viz = erquy.Visualizer(urdf_path, os.path.dirname(urdf_path))
 	
-	def update_vizualizer (self, qpos):
-		self.viz.update(self.q_to_w(qpos))
+	def update_vizualizer (self):
+		qpos, qvel = self.world.getState()
+		self.viz.update(qpos)
 	
 
 	def setJointsTarget (self, joint_target):
-		self.world.setPdTarget(self.q_to_w([0, 0, 0, 0, 0, 0, 1] + list(joint_target)), self.v_to_w([0]*self.world.nv()))
+		q_target = np.zeros((self.nq,))
+		v_target = np.zeros((self.nv,))
+
+		for i in range(12):
+			q_idx, v_idx, _, _ = self.jointGeneralizedIdx[i]
+			q_target[q_idx] = joint_target[i]*self.joint_facs[i]
+		
+		q_target[6] = 1 # to make the quaternion of the trunk happy
+		self.world.setPdTarget(q_target, v_target)
 	
 	def setJointsPdGains (self, joint_kp, joint_kd):
-		n_dof = self.world.nv()
-		kp = np.asarray([0] * (n_dof - 12) + list(joint_kp))
-		kd = np.asarray([0] * (n_dof - 12) + list(joint_kd))
-		self.world.setPdGains(kp, kd)
+		world_kp = np.zeros((self.nv,))
+		world_kd = np.zeros((self.nv,))
+		for i in range(12):
+			q_idx, v_idx, _, _ = self.jointGeneralizedIdx[i]
+			world_kp[v_idx] = joint_kp[i]
+			world_kd[v_idx] = joint_kd[i]
+		for i in range(len(self.flexNames)):
+			q_idx, v_idx, _, _ = self.flexGeneralizedIdx[i]
+			world_kp[v_idx] = 600
+			world_kd[v_idx] = world_kp[v_idx]/20
+		self.world.setPdGains(world_kp, world_kd)
+
 
 	def getJointTorque (self):
-		generalized_torque = self.v_to_s(self.world.getPdForce())
-		return generalized_torque[-12:]
+		generalized_torque = self.world.getPdForce()
+		to_return = np.zeros((12,))
+		for i in range(12):
+			q_idx, v_idx, _, _ = self.jointGeneralizedIdx[i]
+			to_return[i] = generalized_torque[v_idx]*self.joint_facs[i]
+		return to_return
 	
 	def setJointMaxTorque (self, max_torque):
-		self.world.setMaxTorque(np.asarray([0] * 6 + list(max_torque)))
+		world_max_torque = np.zeros((self.nv,))
+		for i in range(12):
+			q_idx, v_idx, _, _ = self.jointGeneralizedIdx[i]
+			world_max_torque[v_idx] = max_torque[i]
+		for i in range(len(self.flexNames)):
+			q_idx, v_idx, _, _ = self.flexGeneralizedIdx[i]
+			world_max_torque[v_idx] = 10000000
+		self.world.setMaxTorque(world_max_torque)
 	
 	def setPushTorque (self, push_torque):
-		generalized_torque = list(push_torque) + [0]*3 + [0]*12
-		self.world.setGeneralizedTorque(self.v_to_w(np.asarray(generalized_torque)))
+		generalized_torque = np.zeros((self.nv, ))
+		generalized_torque[:3] = push_torque
+		self.world.setGeneralizedTorque(np.asarray(generalized_torque))
 	
 
-	def getState (self):
-		qpos, qvel = self.world.getState()
-		return self.q_to_s(qpos), self.v_to_s(qvel)
-	
-	def setState(self, qpos, qvel):
-		self.world.setState(self.q_to_w(qpos), self.v_to_w(qvel))
-		self.world.setPdTarget(self.q_to_w(qpos), self.v_to_w(qvel))
-	
 	def integrate (self):
 		self.world.integrate()
+
+
+
+	def setState (self, base_q, joint_pos, base_v=np.zeros((6,)), joint_vel=np.zeros((12,))):
+		qpos = np.zeros((self.nq,))
+		qvel = np.zeros((self.nv,))
+		for i in range(12):
+			q_idx, v_idx, _, _ = self.jointGeneralizedIdx[i]
+			qpos[q_idx] = joint_pos[i]*self.joint_facs[i]
+			qvel[v_idx] = joint_vel[i]*self.joint_facs[i]
+		qpos[0:7] = base_q
+		qvel[0:6] = base_v
+		self.world.setState(qpos, qvel)
+		self.world.setPdTarget(qpos, qvel)
+
+	def getJointState (self):
+		qpos, qvel = self.world.getState()
+		joint_rot = np.zeros((12,))
+		joint_vel = np.zeros((12,))
+		for i in range(12):
+			q_idx, v_idx, _, _ = self.jointGeneralizedIdx[i]
+			joint_rot[i] = qpos[q_idx]*self.joint_facs[i]
+			joint_vel[i] = qvel[v_idx]*self.joint_facs[i]
+		return joint_rot, joint_vel
+	
+	# def getState (self):
+	# 	qpos, qvel = self.world.getState()
+	# 	return self.q_to_s(qpos), self.v_to_s(qvel)
+	
+	# def setState(self, qpos, qvel):
+	# 	self.world.setState(self.q_to_w(qpos), self.v_to_w(qvel))
+	# 	self.world.setPdTarget(self.q_to_w(qpos), self.v_to_w(qvel))
+	

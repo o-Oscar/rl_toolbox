@@ -26,6 +26,7 @@ class Simulator():
 	
 		# --- creating the simulation World ---
 		urdf_path = os.path.join("data", "idefX", "idefX.urdf")
+		# urdf_path = os.path.join("data", "idefX", "idefX_flex.urdf")
 		# urdf_path = os.path.join("data", "idefX_valley", "idefX.urdf")
 		self.world = IdefXWorld(urdf_path, os.path.dirname(urdf_path))
 
@@ -78,7 +79,7 @@ class Simulator():
 		# self.world.setPdTarget(self.q_to_w([0, 0, 0, 0, 0, 0, 1] + list(joint_target+self.state.random_joint_delta)), self.v_to_w([0]*self.world.nv()))
 		# self.world.setMaxTorque(np.asarray([0] * 6 + [11, 11, 11*24/30] * 4))
 		self.world.setJointsTarget(joint_target+self.state.random_joint_delta)
-		self.world.setJointMaxTorque([11, 11, 11*24/30] * 4)
+		self.world.setJointMaxTorque(np.asarray([11, 11, 11*24/30] * 4))
 
 		# push handling
 		# self.push_N = 60
@@ -94,6 +95,7 @@ class Simulator():
 		push_torque = [cur_push_f_x, cur_push_f_y, 0]# + [0]*3 + [0]*12
 		# self.world.setGeneralizedTorque(self.v_to_w(np.asarray(push_torque)))
 		self.world.setPushTorque(push_torque)
+		# self.world.setPushTorque([0, 0, 0])
 
 		for t in range(self.frameSkip):
 			# current_torque = self.try_to_integrate()
@@ -102,8 +104,8 @@ class Simulator():
 			# self.all_forces.append(self.get_feet_force())
 
 			if reset_base:
-				qpos, qvel = self.world.getState()
-				self.world.setState(np.asarray(list(self.state.sim_args["base_state"]) + list(qpos[7:])), np.asarray([0, 0, 0, 0, 0, 0] + list(qvel[6:])))
+				joint_pos, joint_vel = self.world.getJointState()
+				self.world.setState(self.state.sim_args["base_state"], joint_pos, joint_vel=joint_vel)
 			for state in self.all_states:
 				if t == state.update_t:
 					self.update_state(state, joint_target, action=action)
@@ -117,62 +119,7 @@ class Simulator():
 			
 		if self.debug:
 			# self.viz.update(self.q_to_w(self.state.qpos))
-			self.world.update_vizualizer(self.state.qpos)
-	
-	"""
-	def try_to_integrate (self):
-		n_dof = self.world.world.nv()
-		qpos, qvel = self.world.getState()
-		is_min = [False]*n_dof
-		is_max = [False]*n_dof
-		max_torque = [1000]*6 + [11] * 12 # 11
-		current_torque = [0] * n_dof
-		done = False # [(m or M) or abs(tau) < max_torque for m, M, tau in zip(is_min, is_max, current_torque)] 
-		
-		kp0 = [0] * n_dof # self.kp[:]
-		kd0 = [0] * n_dof # self.kd[:]
-		limit_torque = [0] * n_dof
-		to_plot = [[] for i in range(100)]
-		tests = 0
-		while not np.all(done):
-			print("tests : ", tests)
-			for i in range(n_dof):
-				if is_min[i] :
-					kp0[i] = 0
-					kd0[i] = 0
-					limit_torque[i] = -max_torque[i]
-				elif is_max[i] :
-					kp0[i] = 0
-					kd0[i] = 0
-					limit_torque[i] = max_torque[i]
-				else:
-					kp0[i] = self.kp[i]
-					kd0[i] = self.kd[i]
-					limit_torque[i] = 0
-			
-			print(limit_torque)
-			# print(limit_torque)
-			self.world.setGeneralizedTorque(self.v_to_w(np.asarray(limit_torque)))
-			self.world.setPdGains(np.abs(self.v_to_w(kp0)), np.abs(self.v_to_w(kd0)))
-			# self.world.setPdGains(np.abs(self.v_to_w(self.kp)), np.abs(self.v_to_w(self.kd)))
-			self.world.setState(qpos, qvel)
-			self.world.integrate()
-			
-			current_torque = self.v_to_s(self.world.getPdForce())
-			print(current_torque)
-			# print(current_torque)
-			done = [(m or M) or abs(tau) < max_t for m, M, tau, max_t in zip(is_min, is_max, current_torque, max_torque)] 
-			for i in range(n_dof):
-				to_plot[i].append(current_torque[i])
-				if current_torque[i] > max_torque[i]:
-					is_max[i] = True
-				elif current_torque[i] < -max_torque[i]:
-					is_min[i] = True
-			
-			tests += 1
-		
-		# return is_min, is_max, current_torque, max_torque
-	"""
+			self.world.update_vizualizer()
 
 	def update_state (self, state, joint_target, update_phase=True, action=np.zeros((12,))):
 	
@@ -185,13 +132,13 @@ class Simulator():
 		state.loc_rot_speed = state.base_r.inv().apply(state.base_rot_speed)
 		state.loc_up_vect = state.base_r.inv().apply([0, 0, 1])
 		
-		qpos, qvel = self.world.getState()
-		state.qpos = qpos
-		state.qvel = qvel
+		world_joint_rot, world_joint_vel = self.world.getJointState()
+		# state.qpos = qpos
+		# state.qvel = qvel
 
-		state.joint_rot = np.asarray(qpos[-12:]) - self.state.random_joint_delta
+		state.joint_rot = world_joint_rot - self.state.random_joint_delta
 		state.joint_target = joint_target
-		state.joint_rot_speed = np.asarray(qvel[-12:])
+		state.joint_rot_speed = world_joint_vel
 		state.joint_torque = self.world.getJointTorque()
 		
 		state.foot_force = self.get_feet_force()
@@ -220,9 +167,9 @@ class Simulator():
 			if not "update_cmd" in self.state.sim_args or self.state.sim_args["update_cmd"]:
 				self.cmdSetter.update_cmd()
 		
-	def get_feet_force (self):
+	def get_feet_force (self): # BrOcKeN
 		to_return = [np.zeros((3,)) for i in range(4)]
-		joint_interest = [-1, -1] + [-1, -1, 0, -1, -1, 1, -1, -1, 2, -1, -1, 3]
+		joint_interest = [-1]*6 + [-1, -1, -1, 0, -1, -1, -1, 1, -1, -1, -1, 2, -1, -1, -1, 3] + [-1] * 10
 		n_contact, all_joint_ids, forces = self.world.world.getContactInfos()
 		all_joint_ids = all_joint_ids.reshape((-1,2))
 		for i in range(n_contact):
@@ -262,8 +209,8 @@ class Simulator():
 
 		# ---- setting pids ----
 
-		kp0 = 60 + np.random.uniform(-10, 0)
-		kd0_fac = 0.12 + np.random.uniform(-0.03, 0.03)
+		kp0 = 60 + np.random.uniform(-10, 0) # 30 ?
+		kd0_fac = 0.05 + np.random.uniform(-0.01, 0.01)
 		# kd0_fac = 0.05 + np.random.uniform(-0.02, 0.02)
 
 		kp0 = self.state.sim_args["kp"] if "kp" in self.state.sim_args else kp0 # <- standard 72, best according to a simple test : 60
@@ -277,7 +224,7 @@ class Simulator():
 		# kd0 = kp0*0.1 
 		
 		r = 24/30
-		kp = np.asarray([kp0, kp0, kp0*r]*4) + np.random.uniform(-5, 5, size=12)
+		kp = np.asarray([kp0, kp0, kp0*r]*4) # + np.random.uniform(-5, 5, size=12)
 		kd = [kd0, kd0, kd0*r]*4
 		self.kp = kp
 		self.kd = kd
@@ -308,7 +255,7 @@ class Simulator():
 		legs_angle = np.asarray(qpos[-12:])
 		# self.world.setPdTarget(self.q_to_w(qpos), self.v_to_w(qvel))
 		# self.world.setState(self.q_to_w(qpos), self.v_to_w(qvel))
-		self.world.setState(qpos, qvel)
+		self.world.setState(qpos[:7], qpos[7:])
 		
 		"""
 		self.max_f = 0.1
@@ -336,13 +283,13 @@ class Simulator():
 		for i, strid in enumerate(["FL", "FR", "BL", "BR"]):
 			self.world.world.setMaterialPairProp(self.world.world.getJointIdxByName("universe"), self.world.world.getJointIdxByName(strid+"_forearm_joint"), foot_f[i])
 		
+		
 		if "gravity" in self.state.sim_args:
-			# self.state.gravity = np.asarray([0, 0, -9.81])
 			gravity = np.asarray(self.state.sim_args["gravity"])
 		else:
-			# self.state.gravity = np.asarray([0, 0, -9.81]) + np.random.uniform(-0.8, 0.8, size=3)
-			dg = f0*9.81*0.3
-			gravity = np.asarray([0, 0, -9.81]) + np.random.uniform(-dg, dg, size=3)
+			gravity = [0, np.random.uniform(-0.5, 0.5), -9.81]
+		self.world.setGravity(gravity)
+
 
 		# --- actual state reset ---
 		for state in self.all_states:
@@ -356,7 +303,7 @@ class Simulator():
 		self.cmdSetter.reset_cmd(targ_vel)
 		if self.debug and render:
 			# self.viz.update(self.q_to_w(self.state.qpos))
-			self.world.update_vizualizer(self.state.qpos)
+			self.world.update_vizualizer()
 
 	def close (self):
 		pass

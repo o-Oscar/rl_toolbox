@@ -77,7 +77,7 @@ def calc_target_pos (phase, r, dx, dy, dz, Dx, Dy, Dz):
 	
 	target_pos = [[fx1+Dx, fy1+Dy, fz1+Dz], [fx2+Dx, fy2-Dy, fz2+Dz], [fx2-Dx, fy2+Dy, fz2+Dz], [fx1-Dx, fy1-Dy, fz1+Dz]]
 	# target_pos = [[x-0.065625, y, z] for x, y, z in target_pos] # python -c "print((0.065234375 + .065625)/2)"
-	target_pos = [[x-0.0328125, y, z] for x, y, z in target_pos] # python -c "print((0. + .065625)/2)"
+	target_pos = [[x-0.05, y, z] for x, y, z in target_pos] # python -c "print((0. + .065625)/2)"
 	return target_pos
 
 def get_pos (t, v_targ, f0, r, dx, dy, dz, Dx, Dy, Dz):
@@ -89,9 +89,9 @@ def get_pos (t, v_targ, f0, r, dx, dy, dz, Dx, Dy, Dz):
 	
 	ik_action = ik(target_pos, base_state, default_action)
 	env.reset({"base_state": base_state, "action" : ik_action, "kin_use_reference" : False})
-	qpos = env.state.qpos
+	qpos = env.state.joint_rot
 	# print(qpos[-12:])
-	return ik_action, qpos[-12:]
+	return ik_action, qpos
 
 def get_vel (t, v_targ, f0, r, dx, dy, dz, Dx, Dy, Dz):
 	e = 1e-6

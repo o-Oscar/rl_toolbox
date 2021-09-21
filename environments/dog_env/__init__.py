@@ -57,7 +57,7 @@ class DogEnv(gym.Env):
 		
 		rew = self.reward.step()
 		done = self.reward.done()
-		
+
 		return self.calc_obs(), rew, done, {}
 		
 	def reset(self, sim_args={}, render=True):
@@ -69,7 +69,7 @@ class DogEnv(gym.Env):
 			# "phase" : 0,
 			# "kp" : 60,
 			# "kd_fac": 0.12,
-			"gravity": [0, 0, -9.81],
+			# "gravity": [0, 0, -9.81],
 			"foot_f": [0.4]*4,
 			"push_f": 250,
 		}
@@ -158,9 +158,9 @@ class DogEnv_follow(gym.Env):
 			# "reset_base" : True,
 			# "update_phase": False,
 			# "phase": np.pi,
-			"foot_f": [0.3]*4,
+			"foot_f": [0.5]*4,
 			# "action" : np.asarray([0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0])
-			"gravity": [0, 0, -9.81],
+			# "gravity": [0, 0, -9.81],
 		}
 		self.state.sim_args.update(sim_args)
 		

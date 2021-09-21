@@ -140,7 +140,7 @@ class TorqueRew:
 class JointSpeed:
 	def __init__(self, state):
 		self.state = state
-		self.a = 0.003
+		self.a = 0.005
 		
 	def step (self):
 		# torque = np.sum(np.abs(self.state.joint_torque))

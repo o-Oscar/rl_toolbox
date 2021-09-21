@@ -18,7 +18,7 @@ def get_rotation (up_vect):
 	return r
 
 
-filename = "2021_07_12_19h59m34s_LogFile.hdf5"#.format(dt_string)
+filename = "2021_08_29_15h49m23s_LogFile.hdf5"#.format(dt_string)
 path = os.path.join("src", "logs", filename)
 print("reading")
 f = h5py.File(path, "r")
@@ -30,26 +30,52 @@ import numpy as np
 
 import matplotlib.pyplot as plt
 
-render = True
+if False:
+	render = False
 
-env = DogEnv(debug=render)
-input()
-"""
-for key, value in f.items():
-	print(key)
-	plt.plot(value[1:])
+	env_setup={
+		"kp":60,
+		"kd_fac": 0.12,
+		"base_state" : np.asarray([0, 0, 0.4, 0, 0, 0, 1]),
+		"reset_base" : True,
+		# "update_phase": False,
+		"phase": 0,
+		"foot_f": [0.4]*4,
+		# "action" : np.asarray([0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0])
+		"gravity": [0, -0., -9.81],
+		"push_f": 0,
+	}
+
+	env.reset(env_setup)
+	all_joint_pos = []
+	for i in range(30*3):
+		env.step(np.zeros((12,)))
+		all_joint_pos.append(env.state.joint_rot)
+
+	all_joint_pos = np.asarray(all_joint_pos)
+
+	plt.plot(f["joint_rot"][:,:3])
+	plt.plot(all_joint_pos[:,:3])
 	plt.show()
-"""
-print(np.std(f["up_vect"], axis=0)*180/np.pi)
-print(np.mean(f["up_vect"], axis=0)*180/np.pi)
-plt.plot(f["up_vect"])
-plt.show()
-exit()
+
+# for key, value in f.items():
+# 	print(key)
+# 	plt.plot(value[1:])
+# 	plt.show()
+
+# print(np.std(f["up_vect"], axis=0)*180/np.pi)
+# print(np.mean(f["up_vect"], axis=0)*180/np.pi)
+# plt.plot(f["up_vect"])
+# plt.show()
+
+
+render = True
+env = DogEnv(debug=render)
 
 while (True):
-	# print(f.keys())
+	print(f.keys())
 	# for leg_qpos, up_vect in zip(f["joint_rot"], f["up_vect"]):
-	for leg_qpos, up_vect in zip(f["qpos"], f["up_vect"]):
+	for leg_qpos, up_vect in zip(f["joint_rot"], f["up_vect"]):
 		# "base_state" in self.state.sim_args and "leg_pos"
 		h0 = 1
 		body_r = get_rotation(np.asarray([up_vect]))

@@ -252,7 +252,8 @@ class JointFlexiblePos (ObsGen):
 		self.mean = np.asarray([0., 0.628, -1.257] * 4)
 		self.kp = np.asarray([200, 200, 200] * 4)
 	def generate (self):
-		return np.asarray(self.state.joint_rot) + np.asarray(self.state.joint_torque)/self.kp - self.mean
+		return np.asarray(self.state.joint_rot) - self.mean
+		# return np.asarray(self.state.joint_rot) + np.asarray(self.state.joint_torque)/self.kp - self.mean
 	def get_sym_obs_matrix (self):
 		return switch_legs
 
@@ -262,7 +263,7 @@ class JointFlexibleDelta (ObsGen):
 		self.obs_dim = 12
 		self.kp = np.asarray([200, 200, 200] * 4)
 	def generate (self):
-		return np.asarray(self.state.joint_target) - (np.asarray(self.state.joint_rot) + np.asarray(self.state.joint_torque)/self.kp)
+		return np.asarray(self.state.joint_target) - (np.asarray(self.state.joint_rot))# + np.asarray(self.state.joint_torque)/self.kp)
 	def get_sym_obs_matrix (self):
 		return switch_legs
 

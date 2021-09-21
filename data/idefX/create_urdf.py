@@ -183,14 +183,14 @@ def add_simple_joint (robot, name, parent_name, child_name, type, pos, rot):
 	child.set("link", child_name)
 
 
-def add_joint_wrapper (robot, parent_name, child_name, pos, rot, axis=None, max_torque=None, type="revolute"):
+def add_joint_wrapper (robot, parent_name, child_name, pos, rot, axis=None, max_torque=None, type="revolute", name=None):
 	if type == "revolute":
 		assert axis is not None
-	name = child_name + "_joint"
+	name = (child_name + "_joint") if name is None else name
 	pos_str = " ".join((str(x) for x in pos))
 	rot_str = " ".join((str(x) for x in rot))
 	max_torque_strs = str(max_torque) if max_torque is not None else "10000"
-	if not type == "revolute":
+	if not (type == "revolute" or type == "prismatic"):
 		add_simple_joint (robot, name, parent_name, child_name, type, pos_str, rot_str)
 	else:
 		axis_str = " ".join((str(x) for x in axis))
@@ -202,13 +202,13 @@ def add_ground (robot) :
 	link.set("name", name)
 	
 	visual = ET.SubElement(link, 'visual')
-	add_origin(visual, "0 0 -1", "0 0 0")
+	add_origin(visual, "0 0 -1", "0. 0 0")
 	add_box(visual, "100 100 2")
 	material = ET.SubElement(visual, 'material')
 	material.set("name", "white")
 	
 	collision = ET.SubElement(link, 'collision')
-	add_origin(collision, "0 0 -1", "0 0 0")
+	add_origin(collision, "0 0 -1", "0. 0 0")
 	add_box(collision, "100 100 2")
 	
 	return name
@@ -240,6 +240,12 @@ objects = {
 		"inertia" : [0.000006, 0, 0, 0.000006, 0, 0.000006],
 		"use_mesh" : use_mesh,
 		"use_collision" : True,
+	},
+	"none": {
+		"mass" : "0.01",
+		"inertia" : [0.000006, 0, 0, 0.000006, 0, 0.000006],
+		"use_mesh" : False,
+		"use_collision" : False,
 	},
 }
 
@@ -301,7 +307,7 @@ def add_link_wrapper (robot, name, pos, rot, object, color="brown"):
 	add_origin(inertial, pos_str, rot_str)
 	add_inertia(inertial, objects[object]["mass"], inertia_str)
 
-def create_idefX ():
+def create_idefX (flex=False):
 	robot = ET.Element('robot')
 	robot.set("name", "idefX")
 	add_colors(robot)
@@ -325,12 +331,23 @@ def create_idefX ():
 		add_joint_wrapper (robot, trunk_name, first_motor_name, (facx*(0.34-0.035)/2, facy*0.0575, 0.), (0, 0, 0), type="fixed")
 		add_link_wrapper(robot, first_motor_name, (0, 0, 0), (0, -np.pi/2, np.pi*(facx+1)/2), object="motor")
 		
-		
+		if flex:
+			inbetween_name = strid+"_clavicle"+"_inbetween"
+			add_joint_wrapper (robot, trunk_name, inbetween_name, (0, 0, 0.), (0, 0, 0), (1, 0, 0), type="revolute")
+			add_link_wrapper(robot, inbetween_name, (0, 0, 0), (0, 0, 0), object="none")
+			trunk_name = inbetween_name # to make it stick on this new joint
+
 		clavicle_name = strid+"_clavicle"
 		add_joint_wrapper (robot, trunk_name, clavicle_name, (facx*0.45/2, facy*0.0575, -0.0), (0, 0, 0), (1, 0, 0))
 		add_link_wrapper(robot, clavicle_name, (0, facy*(0.05-0.035/2), 0), (0, -np.pi/2, np.pi/2 + np.pi*(facy+1)/2), object="motor")
 		
 		
+		if flex:
+			inbetween_name = strid+"_arm"+"_inbetween"
+			add_joint_wrapper (robot, clavicle_name, inbetween_name, (0, 0, 0.), (0, 0, 0), (0, 1, 0), type="revolute")
+			add_link_wrapper(robot, inbetween_name, (0, 0, 0), (0, 0, 0), object="none")
+			clavicle_name = inbetween_name # to make it stick on this new joint
+
 		arm_name = strid+"_arm"
 		add_joint_wrapper (robot, clavicle_name, arm_name, (0, facy*(0.05+0.04/2), 0), (0, 0, 0), axis=(0, 1, 0), type="revolute")
 		l1 = 0.196
@@ -341,12 +358,23 @@ def create_idefX ():
 		add_joint_wrapper (robot, arm_name, third_motor_name, (0., facy*(0.035+0.04)/2, 0.), (0, 0, 0), type="fixed")
 		add_link_wrapper(robot, third_motor_name, (0, 0, 0), (0, -np.pi/2, np.pi/2 + np.pi*(facy-1)/2), object="motor")
 		
-		
-		forearm_name = strid+"_forearm"
-		add_joint_wrapper (robot, arm_name, forearm_name, (0, facy*0., -l1), (0, 0, 0), axis=(0, 1, 0), type="revolute")
-		l2 = 0.200
-		add_link_wrapper(robot, forearm_name, (0, 0, -l2/2), (0, 0, 0), object="forearm")
+		if flex:
+			inbetween_name = strid+"_forearm"+"_inbetween"
+			add_joint_wrapper (robot, arm_name, inbetween_name, (0, 0, -l1), (0, 0, 0), (0, 1, 0))
+			add_link_wrapper(robot, inbetween_name, (0, facy*(0.05-0.035/2), 0), (0, 0, 0), object="none")
+			arm_name = inbetween_name # to make it stick on this new joint
+			
+			forearm_name = strid+"_forearm"
+			add_joint_wrapper (robot, arm_name, forearm_name, (0, facy*0., 0), (0, 0, 0), axis=(0, 1, 0), type="revolute")
+			l2 = 0.200
+			add_link_wrapper(robot, forearm_name, (0, 0, -l2/2), (0, 0, 0), object="forearm")
 
+		else:
+		
+			forearm_name = strid+"_forearm"
+			add_joint_wrapper (robot, arm_name, forearm_name, (0, facy*0., -l1), (0, 0, 0), axis=(0, 1, 0), type="revolute")
+			l2 = 0.200
+			add_link_wrapper(robot, forearm_name, (0, 0, -l2/2), (0, 0, 0), object="forearm")
 
 		foot_name = strid+"_foot"
 		add_joint_wrapper (robot, forearm_name, foot_name, (0, 0, -l2), (0, 0, 0), (0, 1, 0), type="fixed")
@@ -362,5 +390,11 @@ if __name__ == "__main__":
 	robot = create_idefX()
 
 	with open(str(Path(__file__).parent) + "/idefX.urdf", "w") as f:
+		xmlstr = minidom.parseString(ET.tostring(robot)).toprettyxml(indent="\t")
+		f.write(xmlstr)
+
+	robot = create_idefX(flex=True)
+
+	with open(str(Path(__file__).parent) + "/idefX_flex.urdf", "w") as f:
 		xmlstr = minidom.parseString(ET.tostring(robot)).toprettyxml(indent="\t")
 		f.write(xmlstr)
