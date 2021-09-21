@@ -15,4 +15,4 @@ This repo contains the environment as well as the helper algorithms necessary to
 
 The baseline policy we can get is a simple walking policy, robust to small push on the robot.
 
-https://user-images.githubusercontent.com/48491393/134125845-abba3d11-557e-4e37-90d2-0d54024840c0.mp4
+<img src="https://github.com/o-Oscar/rl_toolbox/blob/master/gifs/dog.gif"/>
